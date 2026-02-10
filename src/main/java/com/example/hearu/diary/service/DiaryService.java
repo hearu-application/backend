@@ -2,6 +2,7 @@ package com.example.hearu.diary.service;
 
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
+import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.event.dto.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
@@ -58,6 +59,24 @@ public class DiaryService {
                 diary.getDiaryId(),
                 diary.getContent(),
                 diary.getEmotionType()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public DiaryDetailResponse getDiaryDetail(Long userId, Long diaryId) {
+        // 1. Diary 조회
+        Diary diary = getDiary(userId, diaryId);
+
+        // 2. 본인 일기 검증
+        diary.validateOwner(userId);
+
+        // 3. DTO 반환
+        return new DiaryDetailResponse(
+                diary.getDiaryId(),
+                diary.getContent(),
+                diary.getEmotionType(),
+                diary.getCreatedAt(),
+                diary.getUpdatedAt()
         );
     }
 
