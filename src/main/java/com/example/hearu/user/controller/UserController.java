@@ -2,8 +2,10 @@ package com.example.hearu.user.controller;
 
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
+import com.example.hearu.user.dto.request.UserSecurityRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.user.dto.response.ProfileResponse;
+import com.example.hearu.user.service.UserSecurityService;
 import com.example.hearu.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final UserSecurityService userSecurityService;
 
     @PatchMapping("/nickname")
     public ResponseEntity<ApiResponse<NicknameUpdateResponse>> updateNickname(
@@ -70,6 +73,22 @@ public class UserController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "사용자 회원탈퇴 완료",
+                        null
+                )
+        );
+    }
+
+    @PatchMapping("/lock-setting/enable")
+    public ResponseEntity<ApiResponse<Void>> enableAppLock(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid UserSecurityRequest request
+    ) {
+
+        userSecurityService.enableAppLock(userId, request.password());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "앱 잠금 설정이 완료되었습니다.",
                         null
                 )
         );
