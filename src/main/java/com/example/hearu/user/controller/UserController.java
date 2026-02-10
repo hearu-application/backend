@@ -108,4 +108,20 @@ public class UserController {
                 )
         );
     }
+
+    @PostMapping("/lock-setting/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyAppLock(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid UserSecurityRequest request
+    ) {
+
+        userSecurityService.verifyAppLock(userId, request.password());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "비밀번호 인증에 성공했습니다.",
+                        null
+                )
+        );
+    }
 }

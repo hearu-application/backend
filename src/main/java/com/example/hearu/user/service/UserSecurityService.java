@@ -38,4 +38,20 @@ public class UserSecurityService {
         // 3. password 초기화
         user.updatePassword(null);
     }
+
+    @Transactional(readOnly = true)
+    public void verifyAppLock(Long userId, String inputPassword) {
+        // 1. User 조회 및 Throw
+        User user = userService.getUserOrThrow(userId);
+
+        // 2. User의 AppLock password null 체크
+        if (user.getPassword() == null) {
+            throw new BusinessException(UserSecurityErrorCode.APP_LOCK_NOT_SET);
+        }
+
+        // 3. User의 password와 입력 password가 동일한지 체크
+        if (!passwordEncoder.matches(inputPassword, user.getPassword())) {
+            throw new BusinessException(UserSecurityErrorCode.INVALID_APP_PASSWORD);
+        }
+    }
 }
