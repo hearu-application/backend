@@ -131,4 +131,24 @@ public class DiaryService {
                     return new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND);
                 });
     }
+
+    @Transactional(readOnly = true)
+    public void requestAiResponse(Long userId, Long diaryId) {
+        // 1. User 엔티티 조회
+        User user = userService.getUserOrThrow(userId);
+
+        // 2. Diary 엔티티 조회
+        Diary diary = getDiary(userId, diaryId);
+
+        // 3. Ai 응답 이벤트 발행
+        applicationEventPublisher.publishEvent(
+                new DiaryAiResponseRequestedEvent(
+                        diary.getDiaryId(),
+                        diary.getContent(),
+                        diary.getEmotionType(),
+                        user.getUserId(),
+                        user.getNickName()
+                )
+        );
+    }
 }
