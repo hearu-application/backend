@@ -4,7 +4,7 @@ import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
-import com.example.hearu.diary.event.dto.DiaryAiResponseRequestedEvent;
+import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
 import com.example.hearu.diary.dto.response.DiaryCreateResponse;
