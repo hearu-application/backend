@@ -33,4 +33,19 @@ public class DiaryController {
                 )
         );
     }
+
+    @DeleteMapping("/{diaryId}")
+    public ResponseEntity<ApiResponse<Void>> deleteDiary(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long diaryId
+    ) {
+
+        diaryService.deleteDiary(userId, diaryId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "일기 삭제가 완료되었습니다.",
+                        null
+                )
+        );
+    }
 }

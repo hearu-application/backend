@@ -1,5 +1,7 @@
 package com.example.hearu.diary.service;
 
+import com.example.hearu.common.util.exception.BusinessException;
+import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.diary.event.dto.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
@@ -57,5 +59,31 @@ public class DiaryService {
                 diary.getContent(),
                 diary.getEmotionType()
         );
+    }
+
+    @Transactional
+    public void deleteDiary(Long userId, Long diaryId) {
+        // 1. User 엔티티 조회
+        User user = userService.getUserOrThrow(userId);
+
+        // 2. 일기 조회
+        Diary diary = getDiary(userId, diaryId);
+
+        // 3. 본인 일기 검증
+        diary.validateOwner(user.getUserId());
+
+        // 4. 일기 삭제
+        diaryRepository.delete(diary);
+    }
+
+
+    @Transactional(readOnly = true)
+    public Diary getDiary(Long userId, Long diaryId) {
+        return diaryRepository.findById(diaryId)
+                .orElseThrow(() -> {
+                    log.warn("일기가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
+                    return new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND);
+                });
+
     }
 }
