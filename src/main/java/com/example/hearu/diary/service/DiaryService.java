@@ -2,6 +2,7 @@ package com.example.hearu.diary.service;
 
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
+import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.event.dto.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
@@ -16,6 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -80,6 +85,28 @@ public class DiaryService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public DiaryCalendarResponse getCalendarDiaries(Long userId, YearMonth yearMonth) {
+
+        // 1. 해당 월의 시작일과 종료일 계산
+        LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+        LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+
+
+        // 2. User 조회
+        User user = userService.getUserOrThrow(userId);
+
+        // 3. DB에서 해당 월의 일기 목록 조회
+        List<Diary> diaries = diaryRepository.findByUserAndCreatedAtBetweenOrderByCreatedAtDesc(
+                user,
+                start,
+                end
+        );
+
+        // 4. DTO로 변환
+        return DiaryCalendarResponse.from(diaries);
+    }
+
     @Transactional
     public void deleteDiary(Long userId, Long diaryId) {
         // 1. User 엔티티 조회
@@ -103,6 +130,5 @@ public class DiaryService {
                     log.warn("일기가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
                     return new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND);
                 });
-
     }
 }

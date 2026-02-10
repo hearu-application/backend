@@ -2,6 +2,7 @@ package com.example.hearu.diary.controller;
 
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
+import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryCreateResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.service.DiaryService;
@@ -11,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.YearMonth;
 
 @RestController
 @RequestMapping("/api/v1/diaries")
@@ -45,6 +48,21 @@ public class DiaryController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "일기 상세 조회가 완료되었습니다.",
+                        response
+                )
+        );
+    }
+
+    @GetMapping("/calendar")
+    public ResponseEntity<ApiResponse<DiaryCalendarResponse>> getCalendarDiaries(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam("yearMonth") YearMonth yearMonth
+    ) {
+
+        DiaryCalendarResponse response = diaryService.getCalendarDiaries(userId, yearMonth);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "캘린더 일기 목록 조회가 완료되었습니다.",
                         response
                 )
         );
