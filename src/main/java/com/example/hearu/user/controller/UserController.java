@@ -61,4 +61,17 @@ public class UserController {
                 )
         );
     }
+
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Void>> delete (
+            @AuthenticationPrincipal Long userId
+    ) {
+        userService.delete(userId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "사용자 회원탈퇴 완료",
+                        null
+                )
+        );
+    }
 }

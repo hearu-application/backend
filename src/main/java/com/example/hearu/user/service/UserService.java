@@ -66,4 +66,14 @@ public class UserService {
         // 2. Refresh Token 삭제
         refreshTokenService.deleteRefreshToken(userId);
     }
+
+    @Transactional
+    public void delete(Long userId) {
+        // 1. User 조회 및 Throw
+        User user = getUserOrThrow(userId);
+
+        // 2. Refresh Token 삭제 & User hard-delete 삭제
+        refreshTokenService.deleteRefreshToken(userId);
+        userRepository.delete(user);
+    }
 }
