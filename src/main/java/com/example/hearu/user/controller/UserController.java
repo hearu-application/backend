@@ -93,4 +93,19 @@ public class UserController {
                 )
         );
     }
+
+    @PatchMapping("/lock-setting/disable")
+    public ResponseEntity<ApiResponse<Void>> disableAppLock(
+            @AuthenticationPrincipal Long userId
+    ) {
+
+        userSecurityService.disableAppLock(userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "앱 잠금이 해제되었습니다.",
+                        null
+                )
+        );
+    }
 }
