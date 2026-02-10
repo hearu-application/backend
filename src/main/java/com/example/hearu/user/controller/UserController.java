@@ -48,4 +48,17 @@ public class UserController {
                 )
         );
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal Long userId
+    ) {
+        userService.logout(userId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "사용자가 로그아웃 완료",
+                        null
+                )
+        );
+    }
 }

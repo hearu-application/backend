@@ -1,5 +1,6 @@
 package com.example.hearu.user.service;
 
+import com.example.hearu.auth.service.RefreshTokenService;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenService refreshTokenService;
 
     @Transactional
     public NicknameUpdateResponse updateNickname(Long userId, NicknameUpdateRequest request) {
@@ -54,5 +56,14 @@ public class UserService {
                 .email(user.getEmail())
                 .isAppLockEnabled(user.getPassword() != null)
                 .build();
+    }
+
+    @Transactional
+    public void logout(Long userId) {
+        // 1. User 조회 및 Throw
+        getUserOrThrow(userId);
+
+        // 2. Refresh Token 삭제
+        refreshTokenService.deleteRefreshToken(userId);
     }
 }
