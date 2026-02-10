@@ -5,6 +5,7 @@ import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.user.domain.User;
 import com.example.hearu.user.domain.error.UserErrorCode;
+import com.example.hearu.user.dto.response.ProfileResponse;
 import com.example.hearu.user.infrastructure.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -41,5 +42,17 @@ public class UserService {
                 log.warn("사용자가 존재하지 않습니다. userId={}", userId);
                 return new BusinessException(UserErrorCode.USER_NOT_FOUND);
             });
+    }
+
+    @Transactional(readOnly = true)
+    public ProfileResponse getProfile(Long userId) { // 반환 타입을 User -> ProfileResponseDto로 변경
+        User user = getUserOrThrow(userId);
+
+        // 엔티티(User)를 응답 DTO로 변환하여 반환
+        return ProfileResponse.builder()
+                .nickname(user.getNickName())
+                .email(user.getEmail())
+                .isAppLockEnabled(user.getPassword() != null)
+                .build();
     }
 }

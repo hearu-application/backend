@@ -3,7 +3,7 @@ package com.example.hearu.user.controller;
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
-import com.example.hearu.user.service.UserSecurityService;
+import com.example.hearu.user.dto.response.ProfileResponse;
 import com.example.hearu.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +31,20 @@ public class UserController {
                 ApiResponse.success(
                         "닉네임 설정 완료",
                         updatedNickname
+                )
+        );
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(
+            @AuthenticationPrincipal Long userId
+    ) {
+
+        ProfileResponse profile = userService.getProfile(userId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "프로필 정보 조회 완료",
+                        profile
                 )
         );
     }
