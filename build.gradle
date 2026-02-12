@@ -25,19 +25,54 @@ repositories {
 }
 
 dependencies {
+	// ==================== Core Spring Boot ====================
+	// JPA/Hibernate ORM 지원 - 데이터베이스 연동
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// Spring MVC 웹 애플리케이션 지원
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	// Bean Validation (JSR-380) 지원 - @NotBlank, @Size 등
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+
+	// ==================== Lombok ====================
+	// 보일러플레이트 코드 제거 - @Getter, @RequiredArgsConstructor 등
 	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+	// ==================== Security ====================
+	// Spring Security 핵심 기능
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// OAuth2 Resource Server - JWT 토큰 검증 지원
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+	// ==================== JWT ====================
+	// JWT 생성 및 파싱 라이브러리
+	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// ==================== OAuth Client ====================
+	// Google OAuth 토큰 검증용 클라이언트
+	implementation "com.google.api-client:google-api-client:2.7.2"
+
+	// ==================== Database ====================
+	// MySQL JDBC 드라이버
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// ==================== Resilience ====================
+	// 재시도 로직 지원 - @Retryable (AI API 호출 등에 활용)
+	implementation 'org.springframework.retry:spring-retry'
+	// AOP 지원 - @Async, @Retryable 등 어노테이션 프록시 처리
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+	// ==================== Monitoring ====================
+	// Actuator - 헬스체크, 메트릭 엔드포인트 제공
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Prometheus 메트릭 포맷 지원
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// ==================== Test ====================
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
