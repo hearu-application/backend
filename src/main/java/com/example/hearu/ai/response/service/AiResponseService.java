@@ -29,7 +29,7 @@ public class AiResponseService {
         AiResponse aiResponse = aiResponseRepository.findById(aiResponseId)
             .orElseThrow(() -> {
                 log.debug("AI 응답 데이터가 존재하지 않습니다. aiResponseId={}", aiResponseId);
-                return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUNT);
+                return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
             });
 
         // 2. AIResponse와 연관된 일기가 인증 소유자와 같은지 검증
@@ -69,7 +69,7 @@ public class AiResponseService {
         return aiResponseRepository.findByDiary(diary)
                 .orElseThrow(() -> {
                     log.warn("AI 응답 데이터가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
-                    return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUNT);
+                    return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
                 });
     }
 
@@ -77,7 +77,7 @@ public class AiResponseService {
     public void markFailed(Long userId, Long diaryId) {
         Diary diary = diaryService.getDiary(userId, diaryId);
         AiResponse aiResponse = aiResponseRepository.findByDiary(diary)
-                .orElseThrow(() -> new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUNT));
+                .orElseThrow(() -> new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND));
         aiResponse.failResponse();
     }
 }
