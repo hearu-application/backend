@@ -67,4 +67,20 @@ public class JwtProvider {
             ZoneId.systemDefault()
         );
     }
+
+    public Long extractUserId(Claims claims) {
+        return Long.valueOf(claims.getSubject());
+    }
+
+    public String extractTokenType(Claims claims) {
+        return claims.get("type", String.class);
+    }
+
+    public String getRefreshTokenTypeValue() {
+        return "REFRESH";
+    }
+
+    public String getAccessTokenTypeValue() {
+        return "ACCESS";
+    }
 }
