@@ -9,8 +9,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.ResourceAccessException;
 
-import com.example.hearu.common.security.SecurityUtil;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,8 +21,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
 
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        log.warn("ENUM 매핑 오류. userId={}, 상세 메시지={}", userId, e.getMessage());
+        log.warn("ENUM 매핑 오류. 상세 메시지={}", e.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
@@ -39,8 +36,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
 
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
-        log.warn("Request Body - Dto 매핑 오류. userId={}, 상세 메시지={}", userId, e.getBindingResult().getFieldErrors().getFirst().getDefaultMessage());
+        log.warn("Request Body - Dto 매핑 오류. 상세 메시지={}", e.getBindingResult().getFieldErrors().getFirst().getDefaultMessage());
 
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
