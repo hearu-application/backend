@@ -44,10 +44,8 @@ public class RefreshTokenPolicy {
     }
 
     private void validateRefreshTokenType(Claims claims) {
-        String tokenType = jwtProvider.extractTokenType(claims);
-
-        if (!jwtProvider.getRefreshTokenTypeValue().equals(tokenType)) {
-            log.warn("Token Type이 Refresh가 아닙니다. 요청 token type={}", tokenType);
+        if (!jwtProvider.isRefreshToken(claims)) {
+            log.warn("Refresh token이 아닙니다.");
             throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
     }
