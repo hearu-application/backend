@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum AiResponseErrorCode implements ErrorCode {
 
-    AI_RESPONSE_NOT_FOUNT("AI 응답을 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
+    AI_RESPONSE_NOT_FOUND("AI 응답을 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
 
     private final String message;
     private final HttpStatus httpStatus;
