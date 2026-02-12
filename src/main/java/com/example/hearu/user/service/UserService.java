@@ -72,8 +72,8 @@ public class UserService {
         // 1. User 조회 및 Throw
         User user = getUserOrThrow(userId);
 
-        // 2. Refresh Token 삭제 & User hard-delete 삭제
+        // 2. Refresh Token hard-delete & User soft-delete
         refreshTokenService.deleteRefreshToken(userId);
-        userRepository.delete(user);
+        user.softDelete();
     }
 }
