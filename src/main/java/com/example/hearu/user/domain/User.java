@@ -2,7 +2,6 @@ package com.example.hearu.user.domain;
 
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.common.util.exception.BusinessException;
-import com.example.hearu.diary.domain.Diary;
 import com.example.hearu.auth.domain.ProviderType;
 
 import com.example.hearu.user.domain.error.UserErrorCode;
@@ -11,10 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
 import lombok.extern.slf4j.Slf4j;
-
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Entity
@@ -37,9 +32,6 @@ public class User extends BaseEntity {
 
     @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private final List<Diary> diaries = new ArrayList<>();
 
     @Column(name = "password")
     private String password;
