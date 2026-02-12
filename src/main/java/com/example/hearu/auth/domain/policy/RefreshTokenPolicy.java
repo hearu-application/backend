@@ -2,7 +2,7 @@ package com.example.hearu.auth.domain.policy;
 
 import java.util.Date;
 
-import com.example.hearu.auth.domain.error.TokenErrorCode;
+import com.example.hearu.auth.domain.error.AuthErrorCode;
 import org.springframework.stereotype.Component;
 
 import com.example.hearu.common.security.jwt.JwtProvider;
@@ -34,12 +34,12 @@ public class RefreshTokenPolicy {
         } catch (ExpiredJwtException e) {
             Date exp = e.getClaims() != null ? e.getClaims().getExpiration() : null;
             log.warn("만료된 Refresh Token입니다. exp={}", exp);
-            throw new BusinessException(TokenErrorCode.EXPIRED_REFRESH_TOKEN);
+            throw new BusinessException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
 
         } catch (JwtException | IllegalArgumentException e) {
             // MalformedJwtException, UnsupportedJwtException 포함
             log.warn("유효하지 않은 Refresh Token입니다. message={}", e.getMessage());
-            throw new BusinessException(TokenErrorCode.INVALID_REFRESH_TOKEN);
+            throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
     }
 
@@ -48,7 +48,7 @@ public class RefreshTokenPolicy {
 
         if (!jwtProvider.getRefreshTokenTypeValue().equals(tokenType)) {
             log.warn("Token Type이 Refresh가 아닙니다. 요청 token type={}", tokenType);
-            throw new BusinessException(TokenErrorCode.INVALID_REFRESH_TOKEN);
+            throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
     }
 
@@ -57,7 +57,7 @@ public class RefreshTokenPolicy {
 
         if (!inputToken.equals(storedToken)) {
             log.warn("저장된 refresh token과 불일치합니다. userId={}", userId);
-            throw new BusinessException(TokenErrorCode.INVALID_REFRESH_TOKEN);
+            throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }
     }
 }
