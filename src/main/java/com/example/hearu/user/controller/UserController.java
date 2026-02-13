@@ -2,6 +2,7 @@ package com.example.hearu.user.controller;
 
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
+import com.example.hearu.user.dto.request.UpdateAiSettingsRequest;
 import com.example.hearu.user.dto.request.UserSecurityRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.user.dto.response.ProfileResponse;
@@ -77,6 +78,26 @@ public class UserController {
                 )
         );
     }
+
+    @PatchMapping("/ai-settings")
+    public ResponseEntity<ApiResponse<Void>> updateAiSettings(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody UpdateAiSettingsRequest request
+    ) {
+        userService.updateAiSettings(userId, request);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "응답 설정이 완료되었습니다.",
+                        null
+                )
+        );
+    }
+
+
+
+    // ----------------------------------------------------------------------- //
+
+
 
     @PatchMapping("/lock-setting/enable")
     public ResponseEntity<ApiResponse<Void>> enableAppLock(
