@@ -33,6 +33,14 @@ public class User extends BaseEntity {
     @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "personality_type", nullable = false, length = 50)
+    private PersonalityType personalityType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tone_type", nullable = false, length = 50)
+    private ToneType toneType;
+
     @Column(name = "password")
     private String password;
 
@@ -40,6 +48,8 @@ public class User extends BaseEntity {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
+        this.personalityType = PersonalityType.EMPATHETIC;
+        this.toneType = ToneType.HONORIFIC;
     }
 
     public static User create(String email, ProviderType provider, String providerUserId) {
