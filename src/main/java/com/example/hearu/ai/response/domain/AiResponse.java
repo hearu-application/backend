@@ -16,7 +16,7 @@ public class AiResponse extends BaseEntity {
     @Column(name = "ai_response_id")
     private Long AiResponseId;
 
-    @OneToOne(cascade = CascadeType.PERSIST)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diary_id", nullable = false)
     private Diary diary;
 
