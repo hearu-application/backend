@@ -52,11 +52,12 @@ public class UserService {
         User user = getUserOrThrow(userId);
 
         // 엔티티(User)를 응답 DTO로 변환하여 반환
-        return ProfileResponse.builder()
-                .nickname(user.getNickName())
-                .email(user.getEmail())
-                .isAppLockEnabled(user.getPassword() != null)
-                .build();
+        return new ProfileResponse(
+                user.getNickName(),
+                user.getEmail(),
+                user.getPersonalityType(),
+                user.getToneType()
+        );
     }
 
     @Transactional
