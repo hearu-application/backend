@@ -11,7 +11,7 @@ public record ClovaChatResponse(
     ){}
 
     public record Result(
-       ClovaMessage clovaMessage,
+       Message message,
        Integer inputLength,
        Integer outputLength,
        String stopReason,
