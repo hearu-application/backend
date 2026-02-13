@@ -119,7 +119,8 @@ public class DiaryService {
         diary.validateOwner(user.getUserId());
 
         // 4. 일기 삭제
-        diaryRepository.delete(diary);
+        diary.softDelete();
+        diary.getAiResponse().softDelete();
     }
 
 

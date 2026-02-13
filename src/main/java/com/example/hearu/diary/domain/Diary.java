@@ -1,5 +1,6 @@
 package com.example.hearu.diary.domain;
 
+import com.example.hearu.ai.response.domain.AiResponse;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
@@ -24,6 +25,10 @@ public class Diary extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @OneToOne(mappedBy = "diary", cascade = CascadeType.PERSIST)
+    @JoinColumn(name = "ai_response_id", nullable = false)
+    private AiResponse aiResponse;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
@@ -38,7 +43,9 @@ public class Diary extends BaseEntity {
     }
 
     public static Diary create(User user, String content, EmotionType emotionType) {
-        return new Diary(user, content, emotionType);
+        Diary diary = new Diary(user, content, emotionType);
+        diary.aiResponse = AiResponse.create(diary);
+        return diary;
     }
 
     public void validateOwner(Long userId) {
