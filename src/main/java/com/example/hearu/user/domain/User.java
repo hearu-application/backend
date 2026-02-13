@@ -64,6 +64,14 @@ public class User extends BaseEntity {
         this.password = password;
     }
 
+    public void updatePersonalityType(PersonalityType personalityType) {
+        this.personalityType = personalityType;
+    }
+
+    public void updateToneType(ToneType toneType) {
+        this.toneType = toneType;
+    }
+
     public void validateUserNickNameExists() {
         if (getNickName() == null) {
             log.error("사용자의 닉네임이 존재하지 않습니다. userId={}", getUserId());

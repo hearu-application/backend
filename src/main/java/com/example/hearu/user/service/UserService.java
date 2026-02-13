@@ -2,6 +2,7 @@ package com.example.hearu.user.service;
 
 import com.example.hearu.auth.service.RefreshTokenService;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
+import com.example.hearu.user.dto.request.UpdateAiSettingsRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.user.domain.User;
@@ -75,5 +76,21 @@ public class UserService {
         // 2. Refresh Token hard-delete & User soft-delete
         refreshTokenService.deleteRefreshToken(userId);
         user.softDelete();
+    }
+
+    @Transactional
+    public void updateAiSettings(Long userId, UpdateAiSettingsRequest request) {
+        // 1. User 엔티티 조회
+        User user = getUserOrThrow(userId);
+
+        // 2. Personality 값이 존재하면, 업데이트
+        if (request.personalityType() != null) {
+            user.updatePersonalityType(request.personalityType());
+        }
+
+        // 3. ToneType 값이 존재하면, 업데이트
+        if (request.toneType() != null) {
+            user.updateToneType(request.toneType());
+        }
     }
 }
