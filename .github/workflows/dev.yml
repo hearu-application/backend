@@ -162,8 +162,8 @@ jobs:
             KAKAO_REST_API_KEY=${{ secrets.DEV_KAKAO_CLIENT_ID }}
             
             # Naver Clova
-            CLOVA_API_KEY=${{ secrets.DEV_CLOVA_API_KEY }}
-            CLOVA_COMPLETION_URL=${{ secrets.DEV_CLOVA_COMPLETION_URL }}
+            LLM_API_KEY=${{ secrets.DEV_CLOVA_API_KEY }}
+            LLM_COMPLETION_URL=${{ secrets.DEV_CLOVA_COMPLETION_URL }}
             
             # Slack
             SLACK_WEBHOOK_URL=${{ secrets.DEV_SLACK_WEBHOOK_URL }}
@@ -177,5 +177,5 @@ jobs:
             docker image prune -f
             
             # 헬스체크
-            sleep 15
+            sleep 60
             curl -f http://localhost:8080/actuator/health || exit 1
