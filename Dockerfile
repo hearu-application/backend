@@ -2,11 +2,11 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-ARG JAR_FILE=build/libs/app.jar
+ARG JAR_FILE=build/libs/*.jar
 COPY ${JAR_FILE} app.jar
 
-RUN addgroup -g 1001 appgroup && \
-    adduser -u 1001 -G appgroup -D appuser && \
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -m appuser && \
     chown -R appuser:appgroup /app
 
 USER appuser
