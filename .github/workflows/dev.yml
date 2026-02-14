@@ -125,7 +125,7 @@ jobs:
           username: ${{ secrets.DEV_SERVER_USERNAME }}
           key: ${{ secrets.DEV_SERVER_SSH_KEY }}
           port: ${{ secrets.DEV_SERVER_PORT }}
-          source: "docker-compose.yml,docker-compose.dev.yml"
+          source: "docker-compose.dev.yml"
           target: "~/hearu"
 
       - name: Deploy
@@ -170,8 +170,8 @@ jobs:
             EOF
             
             # 배포
-            docker compose -f docker-compose.yml -f docker-compose.dev.yml pull app
-            docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --remove-orphans
+            docker compose -f docker-compose.dev.yml pull app
+            docker compose -f docker-compose.dev.yml up -d --remove-orphans
             
             # 정리
             docker image prune -f
