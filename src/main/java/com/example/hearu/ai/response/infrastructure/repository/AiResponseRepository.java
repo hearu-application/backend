@@ -8,4 +8,6 @@ import java.util.Optional;
 
 public interface AiResponseRepository extends JpaRepository<AiResponse, Long> {
     Optional<AiResponse> findByDiary(Diary diary);
+
+    Optional<AiResponse> findByAiResponseIdAndDeletedAtIsNull(Long aiResponseId);
 }
