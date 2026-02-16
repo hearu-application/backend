@@ -11,6 +11,7 @@ import org.springframework.web.client.ResourceAccessException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -22,6 +23,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
 
         log.warn("Request Body Json 매핑 오류. 상세 메시지={}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+            .status(400)
+            .code("BAD_REQUEST")
+            .message("잘못된 요청 값 입니다.")
+            .build();
+
+        return ResponseEntity.status(400).body(response);
+    }
+
+    /** Request Param & Path Variable 매핑 실패 오류 */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
+
+        log.warn("Request Param & Path Variable 매핑 오류. 상세 메시지={}", e.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
