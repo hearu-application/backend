@@ -67,6 +67,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
 
+        log.warn("파라미터 누락 오류. 상세 메시지={}", e.getMessage());
+
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
             .code("BAD_REQUEST")
