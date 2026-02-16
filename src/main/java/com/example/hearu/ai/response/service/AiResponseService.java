@@ -26,7 +26,7 @@ public class AiResponseService {
     public AiResponseResponse getAiResponse(Long userId, Long aiResponseId) {
 
         // 1. AiResponse 엔티티 조회
-        AiResponse aiResponse = aiResponseRepository.findById(aiResponseId)
+        AiResponse aiResponse = aiResponseRepository.findByAiResponseIdAndDeletedAtIsNull(aiResponseId)
             .orElseThrow(() -> {
                 log.debug("AI 응답 데이터가 존재하지 않습니다. aiResponseId={}", aiResponseId);
                 return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
