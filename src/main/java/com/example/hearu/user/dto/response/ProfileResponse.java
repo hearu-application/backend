@@ -1,12 +1,11 @@
 package com.example.hearu.user.dto.response;
 
-import lombok.Builder;
-import lombok.Getter;
+import com.example.hearu.user.domain.PersonalityType;
+import com.example.hearu.user.domain.ToneType;
 
-@Getter
-@Builder
-public class ProfileResponse {
-    private final String nickname;
-    private final String email;
-    private boolean isAppLockEnabled;
-}
+public record ProfileResponse(
+    String nickname,
+    String email,
+    PersonalityType personalityType,
+    ToneType toneType
+){}

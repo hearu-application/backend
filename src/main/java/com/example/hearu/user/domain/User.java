@@ -2,7 +2,6 @@ package com.example.hearu.user.domain;
 
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.common.util.exception.BusinessException;
-import com.example.hearu.diary.domain.Diary;
 import com.example.hearu.auth.domain.ProviderType;
 
 import com.example.hearu.user.domain.error.UserErrorCode;
@@ -11,10 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AccessLevel;
 import lombok.extern.slf4j.Slf4j;
-
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Entity
@@ -38,8 +33,13 @@ public class User extends BaseEntity {
     @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, orphanRemoval = true)
-    private final List<Diary> diaries = new ArrayList<>();
+    @Enumerated(EnumType.STRING)
+    @Column(name = "personality_type", nullable = false, length = 50)
+    private PersonalityType personalityType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tone_type", nullable = false, length = 50)
+    private ToneType toneType;
 
     @Column(name = "password")
     private String password;
@@ -48,6 +48,8 @@ public class User extends BaseEntity {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
+        this.personalityType = PersonalityType.EMPATHETIC;
+        this.toneType = ToneType.HONORIFIC;
     }
 
     public static User create(String email, ProviderType provider, String providerUserId) {
@@ -60,6 +62,14 @@ public class User extends BaseEntity {
 
     public void updatePassword(String password) {
         this.password = password;
+    }
+
+    public void updatePersonalityType(PersonalityType personalityType) {
+        this.personalityType = personalityType;
+    }
+
+    public void updateToneType(ToneType toneType) {
+        this.toneType = toneType;
     }
 
     public void validateUserNickNameExists() {

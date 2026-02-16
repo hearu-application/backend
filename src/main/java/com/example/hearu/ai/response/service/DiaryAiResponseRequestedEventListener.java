@@ -15,7 +15,7 @@ import org.springframework.web.client.ResourceAccessException;
 import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
 import com.example.hearu.ai.response.infrastructure.client.dto.ClovaChatResponse;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
-import com.example.hearu.ai.response.infrastructure.client.dto.ClovaMessage;
+import com.example.hearu.ai.response.infrastructure.client.dto.Message;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,16 +42,16 @@ public class DiaryAiResponseRequestedEventListener {
 
         try {
             // 1. 사용자 일기 내용을 LLM에 전달할 메시지로 변환
-            List<ClovaMessage> clovaMessages = List.of(
-                    new ClovaMessage(
+            List<Message> messages = List.of(
+                    new Message(
                             "user",
                             event.content()
                     )
             );
 
             // 2. llm 외부 api 호출
-            ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(clovaMessages);
-            String content = clovaChatResponse.result().clovaMessage().content();
+            ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(messages);
+            String content = clovaChatResponse.result().message().content();
 
             // 3. ai 응답 완료 및 저장
             aiResponseService.completeAiResponse(
@@ -70,7 +70,7 @@ public class DiaryAiResponseRequestedEventListener {
                 "[AI][Unhandled] diaryId={}, userId={}, reason={}",
                 event.diaryId(),
                 event.userId(),
-                e.getClass().getSimpleName()
+                e.getMessage()
             );
             aiResponseService.markFailed(
                 event.userId(),

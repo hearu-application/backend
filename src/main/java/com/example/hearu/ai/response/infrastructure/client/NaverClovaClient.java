@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.example.hearu.ai.response.infrastructure.client.dto.ClovaMessage;
+import com.example.hearu.ai.response.infrastructure.client.dto.Message;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -39,10 +39,10 @@ public class NaverClovaClient {
     public static final double REPEAT_PENALTY = 1.1;
     public static final int MAX_TOKENS = 256;
 
-    public ClovaChatResponse getAiResponse(List<ClovaMessage> clovaMessages)  {
+    public ClovaChatResponse getAiResponse(List<Message> messages)  {
 
         Map<String, Object> body = new HashMap<>();
-        body.put("messages", clovaMessages);
+        body.put("messages", messages);
         body.put("temperature", TEMPERATURE);
         body.put("topK", TOP_K);
         body.put("topP", TOP_P);

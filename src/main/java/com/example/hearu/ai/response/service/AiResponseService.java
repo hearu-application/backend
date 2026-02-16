@@ -2,6 +2,7 @@ package com.example.hearu.ai.response.service;
 
 import com.example.hearu.ai.response.domain.AiResponse;
 import com.example.hearu.ai.response.domain.AiResponseErrorCode;
+import com.example.hearu.ai.response.dto.response.AiResponseResponse;
 import com.example.hearu.ai.response.infrastructure.repository.AiResponseRepository;
 import com.example.hearu.diary.service.DiaryService;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,25 @@ public class AiResponseService {
 
     private final DiaryService diaryService;
     private final AiResponseRepository aiResponseRepository;
+
+    @Transactional(readOnly = true)
+    public AiResponseResponse getAiResponse(Long userId, Long aiResponseId) {
+
+        // 1. AiResponse 엔티티 조회
+        AiResponse aiResponse = aiResponseRepository.findByAiResponseIdAndDeletedAtIsNull(aiResponseId)
+            .orElseThrow(() -> {
+                log.debug("AI 응답 데이터가 존재하지 않습니다. aiResponseId={}", aiResponseId);
+                return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
+            });
+
+        // 2. AIResponse와 연관된 일기가 인증 소유자와 같은지 검증
+        aiResponse.getDiary().validateOwner(userId);
+
+        return new AiResponseResponse(
+            aiResponse.getResponse(),
+            aiResponse.getAiResponseStatusType()
+        );
+    }
 
     @Transactional
     public void completeAiResponse(Long userId, Long diaryId, String response) {
@@ -43,21 +63,21 @@ public class AiResponseService {
     @Transactional(readOnly = true)
     public AiResponse getAiResponseOrThrow(Long userId, Long diaryId) {
         // 1. Diary 엔티티 조회
-        Diary diary = diaryService.getDiary(userId, diaryId);
+        Diary diary = diaryService.getDiaryOrThrow(userId, diaryId);
 
         // 2. AiResponse 엔티티 조회
         return aiResponseRepository.findByDiary(diary)
                 .orElseThrow(() -> {
                     log.warn("AI 응답 데이터가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
-                    return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUNT);
+                    return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
                 });
     }
 
     @Transactional
     public void markFailed(Long userId, Long diaryId) {
-        Diary diary = diaryService.getDiary(userId, diaryId);
+        Diary diary = diaryService.getDiaryOrThrow(userId, diaryId);
         AiResponse aiResponse = aiResponseRepository.findByDiary(diary)
-                .orElseThrow(() -> new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUNT));
+                .orElseThrow(() -> new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND));
         aiResponse.failResponse();
     }
 }
