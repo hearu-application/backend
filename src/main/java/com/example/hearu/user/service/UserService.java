@@ -40,7 +40,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public User getUserOrThrow(Long userId) {
-        return userRepository.findById(userId)
+        return userRepository.findByUserIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> {
                 log.warn("사용자가 존재하지 않습니다. userId={}", userId);
                 return new BusinessException(UserErrorCode.USER_NOT_FOUND);

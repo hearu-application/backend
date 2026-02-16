@@ -11,4 +11,6 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByProviderAndProviderUserId(ProviderType provider, String sub);
+
+    Optional<User> findByUserIdAndDeletedAtIsNull(Long userId);
 }
