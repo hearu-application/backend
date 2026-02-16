@@ -17,11 +17,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
 
-    /** enum 매핑 실패 오류 */
+    /** RequestBody Json 매핑 실패 오류 */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
 
-        log.warn("ENUM 매핑 오류. 상세 메시지={}", e.getMessage());
+        log.warn("Request Body Json 매핑 오류. 상세 메시지={}", e.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
