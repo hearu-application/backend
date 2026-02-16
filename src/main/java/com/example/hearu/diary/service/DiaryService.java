@@ -141,7 +141,10 @@ public class DiaryService {
         // 2. Diary 엔티티 조회
         Diary diary = getDiaryOrThrow(userId, diaryId);
 
-        // 3. Ai 응답 이벤트 발행
+        // 3. 일기 사용자 검증
+        diary.validateOwner(userId);
+
+        // 4. Ai 응답 이벤트 발행
         applicationEventPublisher.publishEvent(
                 new DiaryAiResponseRequestedEvent(
                         diary.getDiaryId(),
