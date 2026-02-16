@@ -70,7 +70,7 @@ public class DiaryService {
     @Transactional(readOnly = true)
     public DiaryDetailResponse getDiaryDetail(Long userId, Long diaryId) {
         // 1. Diary 조회
-        Diary diary = getDiary(userId, diaryId);
+        Diary diary = getDiaryOrThrow(userId, diaryId);
 
         // 2. 본인 일기 검증
         diary.validateOwner(userId);
@@ -113,7 +113,7 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. 일기 조회
-        Diary diary = getDiary(userId, diaryId);
+        Diary diary = getDiaryOrThrow(userId, diaryId);
 
         // 3. 본인 일기 검증
         diary.validateOwner(user.getUserId());
@@ -125,8 +125,8 @@ public class DiaryService {
 
 
     @Transactional(readOnly = true)
-    public Diary getDiary(Long userId, Long diaryId) {
-        return diaryRepository.findById(diaryId)
+    public Diary getDiaryOrThrow(Long userId, Long diaryId) {
+        return diaryRepository.findByDiaryIdAndDeletedAtIsNull(diaryId)
                 .orElseThrow(() -> {
                     log.warn("일기가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
                     return new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND);
@@ -139,7 +139,7 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. Diary 엔티티 조회
-        Diary diary = getDiary(userId, diaryId);
+        Diary diary = getDiaryOrThrow(userId, diaryId);
 
         // 3. Ai 응답 이벤트 발행
         applicationEventPublisher.publishEvent(

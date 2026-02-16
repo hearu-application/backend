@@ -63,7 +63,7 @@ public class AiResponseService {
     @Transactional(readOnly = true)
     public AiResponse getAiResponseOrThrow(Long userId, Long diaryId) {
         // 1. Diary 엔티티 조회
-        Diary diary = diaryService.getDiary(userId, diaryId);
+        Diary diary = diaryService.getDiaryOrThrow(userId, diaryId);
 
         // 2. AiResponse 엔티티 조회
         return aiResponseRepository.findByDiary(diary)
@@ -75,7 +75,7 @@ public class AiResponseService {
 
     @Transactional
     public void markFailed(Long userId, Long diaryId) {
-        Diary diary = diaryService.getDiary(userId, diaryId);
+        Diary diary = diaryService.getDiaryOrThrow(userId, diaryId);
         AiResponse aiResponse = aiResponseRepository.findByDiary(diary)
                 .orElseThrow(() -> new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND));
         aiResponse.failResponse();
