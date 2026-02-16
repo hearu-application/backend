@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
             .code("BAD_REQUEST")
-            .message(e.getBindingResult().getFieldErrors().getFirst().getDefaultMessage())
+            .message("잘못된 요청 값 입니다.")
             .build();
 
         return ResponseEntity.status(400).body(response);
@@ -66,6 +66,8 @@ public class GlobalExceptionHandler {
     /** 파라미터 누락 오류 */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+
+        log.warn("파라미터 누락 오류. 상세 메시지={}", e.getMessage());
 
         ErrorResponse response = ErrorResponse.builder()
             .status(400)
