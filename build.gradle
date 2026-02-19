@@ -65,10 +65,12 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-aop'
 
 	// ==================== Monitoring ====================
-	// Actuator - 헬스체크, 메트릭 엔드포인트 제공
+	// Actuator - 헬스체크 제공
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	// Prometheus 메트릭 포맷 지원
-	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // ==================== API 명세 =======================
+    // Swagger - API 명세 자동 제공
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15'
 
 	// ==================== Test ====================
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
