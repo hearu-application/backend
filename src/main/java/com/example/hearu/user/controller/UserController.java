@@ -8,14 +8,16 @@ import com.example.hearu.user.dto.response.NicknameUpdateResponse;
 import com.example.hearu.user.dto.response.ProfileResponse;
 import com.example.hearu.user.service.UserSecurityService;
 import com.example.hearu.user.service.UserService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Slf4j
+@Tag(name = "User", description = "User API")
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class UserController {
     private final UserService userService;
     private final UserSecurityService userSecurityService;
 
+    @SecurityRequirement(name = "Authorization")
     @PatchMapping("/nickname")
     public ResponseEntity<ApiResponse<NicknameUpdateResponse>> updateNickname(
             @AuthenticationPrincipal Long userId,
@@ -39,6 +42,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(
             @AuthenticationPrincipal Long userId
@@ -53,6 +57,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal Long userId
@@ -66,6 +71,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> delete (
             @AuthenticationPrincipal Long userId
@@ -79,6 +85,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @PatchMapping("/ai-settings")
     public ResponseEntity<ApiResponse<Void>> updateAiSettings(
             @AuthenticationPrincipal Long userId,
@@ -98,7 +105,7 @@ public class UserController {
     // ----------------------------------------------------------------------- //
 
 
-
+    @SecurityRequirement(name = "Authorization")
     @PatchMapping("/lock-setting/enable")
     public ResponseEntity<ApiResponse<Void>> enableAppLock(
             @AuthenticationPrincipal Long userId,
@@ -115,6 +122,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @PatchMapping("/lock-setting/disable")
     public ResponseEntity<ApiResponse<Void>> disableAppLock(
             @AuthenticationPrincipal Long userId
@@ -130,6 +138,7 @@ public class UserController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @PostMapping("/lock-setting/verify")
     public ResponseEntity<ApiResponse<Void>> verifyAppLock(
             @AuthenticationPrincipal Long userId,

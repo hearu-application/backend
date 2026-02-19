@@ -6,6 +6,9 @@ import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryCreateResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.service.DiaryService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.YearMonth;
 
+@Tag(name = "Diary", description = "Diary API")
 @RestController
 @RequestMapping("/api/v1/diaries")
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class DiaryController {
 
     private final DiaryService diaryService;
 
+    @SecurityRequirement(name = "Authorization")
     @PostMapping
     public ResponseEntity<ApiResponse<DiaryCreateResponse>> createDiary(
             @AuthenticationPrincipal Long userId,
@@ -38,6 +43,7 @@ public class DiaryController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @GetMapping("/{diaryId}")
     public ResponseEntity<ApiResponse<DiaryDetailResponse>> getDiaryDetail(
             @AuthenticationPrincipal Long userId,
@@ -53,6 +59,7 @@ public class DiaryController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @GetMapping("/calendar")
     public ResponseEntity<ApiResponse<DiaryCalendarResponse>> getCalendarDiaries(
             @AuthenticationPrincipal Long userId,
@@ -68,6 +75,7 @@ public class DiaryController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @DeleteMapping("/{diaryId}")
     public ResponseEntity<ApiResponse<Void>> deleteDiary(
             @AuthenticationPrincipal Long userId,
@@ -83,6 +91,7 @@ public class DiaryController {
         );
     }
 
+    @SecurityRequirement(name = "Authorization")
     @PostMapping("/{diaryId}/ai-response")
     public ResponseEntity<ApiResponse<Void>> requestAiResponse(
             @AuthenticationPrincipal Long userId,

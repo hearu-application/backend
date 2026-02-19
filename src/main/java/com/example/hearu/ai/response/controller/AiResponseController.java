@@ -11,8 +11,11 @@ import com.example.hearu.ai.response.dto.response.AiResponseResponse;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.response.ApiResponse;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "AiResponse", description = "AI 응답 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/ai-responses")
@@ -20,6 +23,7 @@ public class AiResponseController {
 
     private final AiResponseService aiResponseService;
 
+    @SecurityRequirement(name = "Authorization")
     @GetMapping("/{aiResponseId}")
     public ResponseEntity<ApiResponse<AiResponseResponse>> getAiResponse(
         @AuthenticationPrincipal Long userId,

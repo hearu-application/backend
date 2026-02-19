@@ -16,9 +16,11 @@ import com.example.hearu.auth.dto.request.OauthRequest;
 import com.example.hearu.auth.dto.response.AuthResponse;
 import com.example.hearu.auth.service.AuthService;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "Auth", description = "인증 API")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
