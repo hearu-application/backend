@@ -13,9 +13,12 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
+import com.example.hearu.ai.response.domain.PromptBuilder;
 import com.example.hearu.ai.response.infrastructure.client.dto.ClovaChatResponse;
-import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.ai.response.infrastructure.client.dto.Message;
+import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,8 @@ public class DiaryAiResponseRequestedEventListener {
 
     private final AiResponseService aiResponseService;
     private final NaverClovaClient naverClovaClient;
+    private final PromptBuilder promptBuilder;
+    ObjectMapper objectMapper = new ObjectMapper();
 
     @Async
     @Retryable(
@@ -41,23 +46,36 @@ public class DiaryAiResponseRequestedEventListener {
     public void handle(DiaryAiResponseRequestedEvent event) {
 
         try {
-            // 1. 사용자 일기 내용을 LLM에 전달할 메시지로 변환
+            // 1. prompt 생성
+            String systemPrompt = promptBuilder.systemPromptBuild();
+            String userPrompt = promptBuilder.userPromptBuild(event.content(), event.emotionType());
+
+            // 2. 사용자 일기 내용을 LLM에 전달할 메시지로 변환
             List<Message> messages = List.of(
                     new Message(
-                            "user",
-                            event.content()
+                        "system",
+                        systemPrompt
+                    ),
+
+                    new Message(
+                        "user",
+                        userPrompt
                     )
             );
 
-            // 2. llm 외부 api 호출
+            // 3. llm 외부 api 호출
             ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(messages);
             String content = clovaChatResponse.result().message().content();
 
-            // 3. ai 응답 완료 및 저장
+            // 4. Json으로 파싱 및 검증 dev
+            JsonNode jsonNode = objectMapper.readTree(content);
+            String response = jsonNode.get("response").asText();
+
+            // 5. ai 응답 완료 및 저장
             aiResponseService.completeAiResponse(
                     event.userId(),
                     event.diaryId(),
-                    content
+                    response
             );
 
         } catch (ResourceAccessException | HttpServerErrorException e) {
@@ -70,7 +88,7 @@ public class DiaryAiResponseRequestedEventListener {
                 "[AI][Unhandled] diaryId={}, userId={}, reason={}",
                 event.diaryId(),
                 event.userId(),
-                e.getMessage()
+                e.getClass().getSimpleName()
             );
             aiResponseService.markFailed(
                 event.userId(),
