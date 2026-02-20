@@ -45,7 +45,8 @@ public class AuthService {
 
         return new AuthResponse(
             accessToken,
-            refreshToken
+            refreshToken,
+            user.getNickName()
         );
     }
 
