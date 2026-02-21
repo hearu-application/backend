@@ -1,5 +1,7 @@
 package com.example.hearu.user.domain;
 
+import java.util.UUID;
+
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.auth.domain.ProviderType;
@@ -54,6 +56,12 @@ public class User extends BaseEntity {
 
     public static User create(String email, ProviderType provider, String providerUserId) {
         return new User(email, provider, providerUserId);
+    }
+
+    @Override
+    public void softDelete() {
+        super.softDelete();
+        this.providerUserId = this.providerUserId + ":deleted:" + UUID.randomUUID();
     }
 
     public void updateNickname(String nickname) {
