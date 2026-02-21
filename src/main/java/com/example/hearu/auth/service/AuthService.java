@@ -52,7 +52,7 @@ public class AuthService {
 
     @Transactional
     public User findOrCreateUserBy(ProviderType provider, String sub, String email) {
-        return userRepository.findByProviderAndProviderUserId(provider, sub)
+        return userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub)
                 .orElseGet(() -> userRepository.save(User.create(email, provider, sub)));
     }
 }
