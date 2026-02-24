@@ -87,7 +87,7 @@ public class DiaryService {
     }
 
     @Transactional(readOnly = true)
-    public List<DiaryDetailResponse> getDiaryDetail(Long userId, int size) {
+    public List<DiaryDetailResponse> getListDiaryDetail(Long userId, int size) {
         // 1. Diary 엔티티 페이지 조회
         List<Diary> diaries = diaryRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, size));
 

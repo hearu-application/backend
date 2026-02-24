@@ -65,12 +65,12 @@ public class DiaryController {
 
     @SecurityRequirement(name = "Authorization")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<DiaryDetailResponse>>> getDiaryDetail(
+    public ResponseEntity<ApiResponse<List<DiaryDetailResponse>>> getListDiaryDetail(
         @AuthenticationPrincipal Long userId,
         @RequestParam int size
     ) {
 
-        List<DiaryDetailResponse> response = diaryService.getDiaryDetail(userId, size);
+        List<DiaryDetailResponse> response = diaryService.getListDiaryDetail(userId, size);
         return ResponseEntity.ok(
             ApiResponse.success(
                 "일기 다 건 상세 조회가 완료되었습니다.",
