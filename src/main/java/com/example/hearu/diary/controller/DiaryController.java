@@ -19,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.YearMonth;
+import java.util.List;
 
 @Tag(name = "Diary", description = "Diary API")
 @RestController
@@ -59,6 +60,22 @@ public class DiaryController {
                         "일기 상세 조회가 완료되었습니다.",
                         response
                 )
+        );
+    }
+
+    @SecurityRequirement(name = "Authorization")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<DiaryDetailResponse>>> getDiaryDetail(
+        @AuthenticationPrincipal Long userId,
+        @RequestParam int size
+    ) {
+
+        List<DiaryDetailResponse> response = diaryService.getDiaryDetail(userId, size);
+        return ResponseEntity.ok(
+            ApiResponse.success(
+                "일기 다 건 상세 조회가 완료되었습니다.",
+                response
+            )
         );
     }
 
