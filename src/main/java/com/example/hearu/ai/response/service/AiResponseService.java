@@ -23,16 +23,19 @@ public class AiResponseService {
     private final AiResponseRepository aiResponseRepository;
 
     @Transactional(readOnly = true)
-    public AiResponseResponse getAiResponse(Long userId, Long aiResponseId) {
+    public AiResponseResponse getAiResponse(Long userId, Long diaryId) {
 
-        // 1. AiResponse 엔티티 조회
-        AiResponse aiResponse = aiResponseRepository.findByAiResponseIdAndDeletedAtIsNull(aiResponseId)
+        // 1. 일기 엔티티 조회
+        Diary diary = diaryService.getDiaryOrThrow(userId, diaryId);
+
+        // 2. AiResponse 엔티티 조회
+        AiResponse aiResponse = aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)
             .orElseThrow(() -> {
-                log.debug("AI 응답 데이터가 존재하지 않습니다. aiResponseId={}", aiResponseId);
+                log.debug("AI 응답 데이터가 존재하지 않습니다. diaryId={}", diaryId);
                 return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
             });
 
-        // 2. AIResponse와 연관된 일기가 인증 소유자와 같은지 검증
+        // 3. AIResponse와 연관된 일기가 인증 소유자와 같은지 검증
         aiResponse.getDiary().validateOwner(userId);
 
         return new AiResponseResponse(
