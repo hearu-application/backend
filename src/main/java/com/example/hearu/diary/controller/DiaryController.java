@@ -1,5 +1,7 @@
 package com.example.hearu.diary.controller;
 
+import com.example.hearu.ai.response.dto.response.AiResponseResponse;
+import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
 import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
@@ -25,6 +27,7 @@ import java.time.YearMonth;
 public class DiaryController {
 
     private final DiaryService diaryService;
+    private final AiResponseService aiResponseService;
 
     @SecurityRequirement(name = "Authorization")
     @PostMapping
@@ -104,6 +107,21 @@ public class DiaryController {
                         "AI 응답 요청 접수 완료",
                         null,
                         HttpStatus.ACCEPTED
+                )
+        );
+    }
+
+    @SecurityRequirement(name = "Authorization")
+    @GetMapping("/{diaryId}/ai-response")
+    public ResponseEntity<ApiResponse<AiResponseResponse>> getAiResponse(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long diaryId
+    ) {
+        AiResponseResponse aiResponse = aiResponseService.getAiResponse(userId, diaryId);
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "AI 응답 조회가 완료되었습니다.",
+                        aiResponse
                 )
         );
     }
