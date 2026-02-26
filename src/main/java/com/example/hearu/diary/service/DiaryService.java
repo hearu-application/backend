@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,19 +84,6 @@ public class DiaryService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public List<DiaryDetailResponse> getListDiaryDetail(Long userId, int size) {
-        // 1. Diary 엔티티 페이지 조회
-        List<Diary> diaries = diaryRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, size));
-
-        // 2. DTO 반환
-        return diaries.stream().map(diary -> new DiaryDetailResponse(
-            diary.getDiaryId(),
-            diary.getContent(),
-            diary.getEmotionType(),
-            diary.getCreatedAt(),
-            diary.getUpdatedAt())).toList();
-    }
 
     @Transactional(readOnly = true)
     public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {
