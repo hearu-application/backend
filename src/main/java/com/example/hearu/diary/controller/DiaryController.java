@@ -4,7 +4,6 @@ import com.example.hearu.ai.response.dto.response.AiResponseResponse;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
-import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryCreateResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.service.DiaryService;
@@ -81,15 +80,15 @@ public class DiaryController {
 
     @SecurityRequirement(name = "Authorization")
     @GetMapping("/calendar")
-    public ResponseEntity<ApiResponse<DiaryCalendarResponse>> getCalendarDiaries(
+    public ResponseEntity<ApiResponse<List<DiaryDetailResponse>>> getCalendarDiaries(
             @AuthenticationPrincipal Long userId,
             @RequestParam("yearMonth") YearMonth yearMonth
     ) {
 
-        DiaryCalendarResponse response = diaryService.getCalendarDiaries(userId, yearMonth);
+        List<DiaryDetailResponse> response = diaryService.getCalendarDiaries(userId, yearMonth);
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        "캘린더 일기 목록 조회가 완료되었습니다.",
+                        "캘린더 일기 목록 다 건 조회가 완료되었습니다.",
                         response
                 )
         );

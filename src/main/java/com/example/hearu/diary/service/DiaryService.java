@@ -2,7 +2,6 @@ package com.example.hearu.diary.service;
 
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
-import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
@@ -101,7 +100,7 @@ public class DiaryService {
     }
 
     @Transactional(readOnly = true)
-    public DiaryCalendarResponse getCalendarDiaries(Long userId, YearMonth yearMonth) {
+    public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {
 
         // 1. 해당 월의 시작일과 종료일 계산
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
@@ -119,7 +118,7 @@ public class DiaryService {
         );
 
         // 4. DTO로 변환
-        return DiaryCalendarResponse.from(diaries);
+        return diaries.stream().map(DiaryDetailResponse::fromEntity).toList();
     }
 
     @Transactional
