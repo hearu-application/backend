@@ -2,7 +2,6 @@ package com.example.hearu.diary.service;
 
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
-import com.example.hearu.diary.dto.response.DiaryCalendarResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,22 +84,9 @@ public class DiaryService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public List<DiaryDetailResponse> getListDiaryDetail(Long userId, int size) {
-        // 1. Diary 엔티티 페이지 조회
-        List<Diary> diaries = diaryRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, size));
-
-        // 2. DTO 반환
-        return diaries.stream().map(diary -> new DiaryDetailResponse(
-            diary.getDiaryId(),
-            diary.getContent(),
-            diary.getEmotionType(),
-            diary.getCreatedAt(),
-            diary.getUpdatedAt())).toList();
-    }
 
     @Transactional(readOnly = true)
-    public DiaryCalendarResponse getCalendarDiaries(Long userId, YearMonth yearMonth) {
+    public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {
 
         // 1. 해당 월의 시작일과 종료일 계산
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
@@ -119,7 +104,7 @@ public class DiaryService {
         );
 
         // 4. DTO로 변환
-        return DiaryCalendarResponse.from(diaries);
+        return diaries.stream().map(DiaryDetailResponse::fromEntity).toList();
     }
 
     @Transactional
