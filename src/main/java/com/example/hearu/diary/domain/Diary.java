@@ -26,7 +26,6 @@ public class Diary extends BaseEntity {
     private User user;
 
     @OneToOne(mappedBy = "diary", cascade = CascadeType.PERSIST)
-    @JoinColumn(name = "ai_response_id", nullable = false)
     private AiResponse aiResponse;
 
     @Column(columnDefinition = "TEXT", nullable = false)
