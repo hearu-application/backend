@@ -14,7 +14,7 @@ import java.util.Optional;
 @Repository
 public interface DiaryRepository extends JpaRepository<Diary, Long> {
 
-    List<Diary> findByUserAndCreatedAtBetweenOrderByCreatedAtDesc(User user, LocalDateTime start, LocalDateTime end);
+    List<Diary> findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(User user, LocalDateTime start, LocalDateTime end);
 
     Optional<Diary> findByDiaryIdAndDeletedAtIsNull(Long id);
 }

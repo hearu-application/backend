@@ -97,7 +97,7 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 3. DB에서 해당 월의 일기 목록 조회
-        List<Diary> diaries = diaryRepository.findByUserAndCreatedAtBetweenOrderByCreatedAtDesc(
+        List<Diary> diaries = diaryRepository.findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(
                 user,
                 start,
                 end
