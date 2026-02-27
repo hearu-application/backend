@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.example.hearu.ai.character.domain.Companion;
+import com.example.hearu.ai.character.domain.error.CompanionErrorCode;
 import com.example.hearu.ai.character.dto.response.CompanionResponse;
 import com.example.hearu.ai.character.infrastructure.CompanionRepository;
+import com.example.hearu.common.util.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,5 +25,10 @@ public class CompanionService {
 
         // 2. DTO 리스트로 반환
         return companions.stream().map(CompanionResponse::fromEntity).toList();
+    }
+
+    public Companion getOrThrow(Long companionId) {
+        return companionRepository.findById(companionId)
+            .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));
     }
 }
