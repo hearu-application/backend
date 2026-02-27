@@ -31,7 +31,7 @@ public class UserSecurityService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. User의 AppLock password null 체크
-        if (user.getPassword() == null) {
+        if (!user.hasPassword()) {
             throw new BusinessException(UserSecurityErrorCode.APP_LOCK_NOT_SET);
         }
 
@@ -45,7 +45,7 @@ public class UserSecurityService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. User의 AppLock password null 체크
-        if (user.getPassword() == null) {
+        if (!user.hasPassword()) {
             throw new BusinessException(UserSecurityErrorCode.APP_LOCK_NOT_SET);
         }
 

@@ -48,15 +48,17 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public ProfileResponse getProfile(Long userId) { // 반환 타입을 User -> ProfileResponseDto로 변경
+    public ProfileResponse getProfile(Long userId) {
+        // 1. User 엔티티 조회
         User user = getUserOrThrow(userId);
 
-        // 엔티티(User)를 응답 DTO로 변환하여 반환
+        // 2. 엔티티(User)를 응답 DTO로 변환하여 반환
         return new ProfileResponse(
                 user.getNickName(),
                 user.getEmail(),
                 user.getPersonalityType(),
-                user.getToneType()
+                user.getToneType(),
+                user.hasPassword()
         );
     }
 
