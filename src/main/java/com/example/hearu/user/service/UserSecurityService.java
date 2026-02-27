@@ -21,7 +21,12 @@ public class UserSecurityService {
         // 1. User 조회 및 Throw
         User user = userService.getUserOrThrow(userId);
 
-        // 2. password 인코딩 후, 저장
+        // 2. 앱 잠금이 이미 설정되어 있으면 예외
+        if (user.hasPassword()) {
+            throw new BusinessException(UserSecurityErrorCode.APP_LOCK_ALREADY_SET);
+        }
+
+        // 3. password 인코딩 후 저장
         user.updatePassword(passwordEncoder.encode(password));
     }
 
