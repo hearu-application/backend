@@ -1,6 +1,7 @@
 package com.example.hearu.user.controller;
 
 import com.example.hearu.common.response.ApiResponse;
+import com.example.hearu.user.dto.request.ChangeAppLockPasswordRequest;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
 import com.example.hearu.user.dto.request.UpdateAiSettingsRequest;
 import com.example.hearu.user.dto.request.UserSecurityRequest;
@@ -133,6 +134,21 @@ public class UserController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "앱 잠금이 해제되었습니다.",
+                        null
+                )
+        );
+    }
+
+    @SecurityRequirement(name = "Authorization")
+    @PatchMapping("/lock-setting/password")
+    public ResponseEntity<ApiResponse<Void>> changeAppLockPassword(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid ChangeAppLockPasswordRequest request
+    ) {
+        userSecurityService.changeAppLockPassword(userId, request.currentPassword(), request.newPassword());
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "앱 잠금 비밀번호가 변경되었습니다.",
                         null
                 )
         );

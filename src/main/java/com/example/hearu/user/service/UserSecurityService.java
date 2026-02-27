@@ -39,6 +39,30 @@ public class UserSecurityService {
         user.updatePassword(null);
     }
 
+    @Transactional
+    public void changeAppLockPassword(Long userId, String currentPassword, String newPassword) {
+        // 1. User 엔티티 조회
+        User user = userService.getUserOrThrow(userId);
+
+        // 2. 앱 잠금이 설정되어 있지 않으면 예외
+        if (!user.hasPassword()) {
+            throw new BusinessException(UserSecurityErrorCode.APP_LOCK_NOT_SET);
+        }
+
+        // 3. 현재 비밀번호 일치 검증
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException(UserSecurityErrorCode.INVALID_APP_PASSWORD);
+        }
+
+        // 4. 새 비밀번호가 현재 비밀번호와 동일하면 예외
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BusinessException(UserSecurityErrorCode.SAME_AS_CURRENT_PASSWORD);
+        }
+
+        // 5. 새 비밀번호 인코딩 후 저장
+        user.updatePassword(passwordEncoder.encode(newPassword));
+    }
+
     @Transactional(readOnly = true)
     public void verifyAppLock(Long userId, String inputPassword) {
         // 1. User 조회 및 Throw
