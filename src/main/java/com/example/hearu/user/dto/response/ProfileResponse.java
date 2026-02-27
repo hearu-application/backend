@@ -7,5 +7,6 @@ public record ProfileResponse(
     String nickname,
     String email,
     PersonalityType personalityType,
-    ToneType toneType
+    ToneType toneType,
+    boolean hasPassword
 ){}

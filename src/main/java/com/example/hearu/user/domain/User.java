@@ -86,4 +86,8 @@ public class User extends BaseEntity {
             throw new BusinessException(UserErrorCode.NICKNAME_REQUIRED);
         }
     }
+
+    public boolean hasPassword() {
+        return this.password != null;
+    }
 }
