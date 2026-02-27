@@ -2,6 +2,7 @@ package com.example.hearu.user.domain;
 
 import java.util.UUID;
 
+import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.auth.domain.ProviderType;
@@ -35,9 +36,9 @@ public class User extends BaseEntity {
     @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "personality_type", nullable = false, length = 50)
-    private PersonalityType personalityType;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "companion_id")
+    private Companion companion;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tone_type", nullable = false, length = 50)
@@ -50,7 +51,6 @@ public class User extends BaseEntity {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
-        this.personalityType = PersonalityType.EMPATHETIC;
         this.toneType = ToneType.HONORIFIC;
     }
 
@@ -72,8 +72,8 @@ public class User extends BaseEntity {
         this.password = password;
     }
 
-    public void updatePersonalityType(PersonalityType personalityType) {
-        this.personalityType = personalityType;
+    public void updateCompanion(Companion companion) {
+        this.companion = companion;
     }
 
     public void updateToneType(ToneType toneType) {
