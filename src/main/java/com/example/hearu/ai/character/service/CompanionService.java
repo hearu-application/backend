@@ -29,6 +29,11 @@ public class CompanionService {
         return companions.stream().map(CompanionResponse::fromEntity).toList();
     }
 
+    public Companion getDefaultOrThrow() {
+        return companionRepository.findByIsDefault(true)
+            .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));
+    }
+
     public Companion getOrThrow(Long companionId) {
         return companionRepository.findById(companionId)
             .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));

@@ -26,6 +26,9 @@ public class Companion extends BaseEntity {
     @Column(name = "description", nullable = false)
     private String description;
 
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault;
+
     @Column(name = "persona", nullable = false, columnDefinition = "TEXT")
     private String persona;
 
