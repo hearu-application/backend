@@ -55,7 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/diaries/**").hasRole(Role.USER.name())
                         .requestMatchers("/api/v1/users/**").hasRole(Role.USER.name())
-                        .requestMatchers("/api/v1/companies/**").hasRole(Role.USER.name())
+                        .requestMatchers("/api/v1/companions/**").hasRole(Role.USER.name())
 
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll()
