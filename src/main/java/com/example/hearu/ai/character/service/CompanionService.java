@@ -30,7 +30,7 @@ public class CompanionService {
     }
 
     public Companion getDefaultOrThrow() {
-        return companionRepository.findByIsDefault(true)
+        return companionRepository.findByIsDefaultTrue()
             .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));
     }
 
