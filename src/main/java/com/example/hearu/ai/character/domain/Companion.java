@@ -26,13 +26,16 @@ public class Companion extends BaseEntity {
     @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "persona", nullable = false, columnDefinition = "TEXT", length = 100)
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault;
+
+    @Column(name = "persona", nullable = false, columnDefinition = "TEXT")
     private String persona;
 
-    @Column(name = "behavior_rules", nullable = false, columnDefinition = "TEXT", length = 100)
+    @Column(name = "behavior_rules", nullable = false, columnDefinition = "TEXT")
     private String behaviorRules;
 
-    @Column(name = "examples", nullable = false, columnDefinition = "TEXT", length = 100)
+    @Column(name = "examples", nullable = false, columnDefinition = "TEXT")
     private String examples;
 
     private Companion(

@@ -37,7 +37,7 @@ public class User extends BaseEntity {
     private String providerUserId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "companion_id")
+    @JoinColumn(name = "companion_id", nullable = false)
     private Companion companion;
 
     @Enumerated(EnumType.STRING)
@@ -47,15 +47,16 @@ public class User extends BaseEntity {
     @Column(name = "password")
     private String password;
 
-    private User(String email, ProviderType provider, String providerUserId) {
+    private User(String email, ProviderType provider, String providerUserId, Companion companion) {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.toneType = ToneType.HONORIFIC;
+        this.companion = companion;
     }
 
-    public static User create(String email, ProviderType provider, String providerUserId) {
-        return new User(email, provider, providerUserId);
+    public static User create(String email, ProviderType provider, String providerUserId, Companion companion) {
+        return new User(email, provider, providerUserId, companion);
     }
 
     @Override
