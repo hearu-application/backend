@@ -17,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
@@ -30,6 +31,8 @@ public class DiaryService {
     private final UserService userService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
+    private static final int DIARY_DAILY_LIMIT = 10;
+
     @Transactional
     public DiaryCreateResponse createDiary(Long userId, DiaryCreateRequest request) {
 
@@ -38,6 +41,17 @@ public class DiaryService {
 
         // 2. User 닉네임이 존재하는지 판단(정책)
         user.validateUserNickNameExists();
+
+        // 3. 하루 일기 제한 검사(정책)
+        LocalDate today = LocalDate.now();
+        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+            userId,
+            today.atStartOfDay(),
+            today.plusDays(1).atStartOfDay()
+        );
+        if (count >= DIARY_DAILY_LIMIT) {
+            throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
+        }
 
         // 3. Diary 엔티티 생성 및 저장
         Diary diary = Diary.create(
