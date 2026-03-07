@@ -3,6 +3,7 @@ package com.example.hearu.diary.service;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
+import com.example.hearu.diary.dto.response.DiaryTodayCountResponse;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -47,7 +49,7 @@ public class DiaryService {
         long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
             userId,
             today.atStartOfDay(),
-            today.plusDays(1).atStartOfDay()
+            today.atTime(LocalTime.MAX)
         );
         if (count >= DIARY_DAILY_LIMIT) {
             throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
@@ -98,6 +100,19 @@ public class DiaryService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public DiaryTodayCountResponse getTodayDiaryCount(Long userId) {
+
+        // 1. 오늘 날짜 확인
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
+
+        // 2. 오늘 일기 작성 횟수 조회
+        int todayDiaryCount = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(userId, start, end);
+
+        return new DiaryTodayCountResponse(todayDiaryCount);
+    }
 
     @Transactional(readOnly = true)
     public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {

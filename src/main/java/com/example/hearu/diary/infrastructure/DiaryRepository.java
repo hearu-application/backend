@@ -18,5 +18,5 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
 
     Optional<Diary> findByDiaryIdAndDeletedAtIsNull(Long id);
 
-    int countAllByUser_UserIdAndCreatedAtBetween(Long userId, LocalDateTime localDateTime, LocalDateTime localDateTime1);
+    int countAllByUser_UserIdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 }
