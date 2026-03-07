@@ -6,6 +6,7 @@ import com.example.hearu.common.response.ApiResponse;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
 import com.example.hearu.diary.dto.response.DiaryCreateResponse;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
+import com.example.hearu.diary.dto.response.DiaryTodayCountResponse;
 import com.example.hearu.diary.service.DiaryService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -59,6 +60,20 @@ public class DiaryController {
                         "일기 상세 조회가 완료되었습니다.",
                         response
                 )
+        );
+    }
+
+    @SecurityRequirement(name = "Authorization")
+    @GetMapping("/today/count")
+    public ResponseEntity<ApiResponse<DiaryTodayCountResponse>> getTodayDiaryCount(
+        @AuthenticationPrincipal Long userId
+    ) {
+        DiaryTodayCountResponse todayDiaryCount = diaryService.getTodayDiaryCount(userId);
+        return ResponseEntity.ok(
+            ApiResponse.success(
+                "오늘 일기 갯수 조회가 완료되었습니다.",
+                todayDiaryCount
+            )
         );
     }
 
