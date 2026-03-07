@@ -49,7 +49,7 @@ public class DiaryService {
         long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
             userId,
             today.atStartOfDay(),
-            today.plusDays(1).atStartOfDay()
+            today.atTime(LocalTime.MAX)
         );
         if (count >= DIARY_DAILY_LIMIT) {
             throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
