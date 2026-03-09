@@ -1,8 +1,8 @@
-name: Dev Deploy
+name: Prod Deploy
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -89,8 +89,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=dev
-            type=sha,prefix=dev-
+            type=raw,value=prod
+            type=sha,prefix=prod-
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -106,13 +106,13 @@ jobs:
             JAR_FILE=build/libs/*.jar
 
   # ===================================
-  # 3. Deploy to Dev Server
+  # 3. Deploy to Prod Server
   # ===================================
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: docker
-    environment: development
+    environment: production
 
     steps:
       - name: Checkout
@@ -121,61 +121,61 @@ jobs:
       - name: Copy docker-compose to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USERNAME }}
-          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
-          port: ${{ secrets.DEV_SERVER_PORT }}
-          source: "docker-compose.dev.yml"
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USERNAME }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
+          source: "docker-compose.prod.yml"
           target: "~/hearu"
 
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USERNAME }}
-          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
-          port: ${{ secrets.DEV_SERVER_PORT }}
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USERNAME }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          port: ${{ secrets.PROD_SERVER_PORT }}
           script: |
             cd ~/hearu
-            
+
             # GHCR 로그인
             echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u hearu-application --password-stdin
-            
+
             # .env 생성
             cat > .env << EOF
             # Docker Image
             DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            DOCKER_TAG=dev
-            
+            DOCKER_TAG=prod
+
             # Database
-            DB_URL=${{ secrets.DEV_DB_URL }}
-            DB_USERNAME=${{ secrets.DEV_DB_USERNAME }}
-            DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}
-            
+            DB_URL=${{ secrets.PROD_DB_URL }}
+            DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
+
             # JWT
-            JWT_SECRET_KEY=${{ secrets.DEV_JWT_SECRET_KEY }}
-            ACCESS_TOKEN_EXPIRE_TIME=${{ secrets.DEV_ACCESS_TOKEN_EXPIRE_TIME }}
-            REFRESH_TOKEN_EXPIRE_TIME=${{ secrets.DEV_REFRESH_TOKEN_EXPIRE_TIME }}
-            
+            JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
+            ACCESS_TOKEN_EXPIRE_TIME=${{ secrets.PROD_ACCESS_TOKEN_EXPIRE_TIME }}
+            REFRESH_TOKEN_EXPIRE_TIME=${{ secrets.PROD_REFRESH_TOKEN_EXPIRE_TIME }}
+
             # OAuth
-            GOOGLE_CLIENT_ID=${{ secrets.DEV_GOOGLE_CLIENT_ID }}
-            KAKAO_REST_API_KEY=${{ secrets.DEV_KAKAO_CLIENT_ID }}
-            
+            GOOGLE_CLIENT_ID=${{ secrets.PROD_GOOGLE_CLIENT_ID }}
+            KAKAO_REST_API_KEY=${{ secrets.PROD_KAKAO_CLIENT_ID }}
+
             # Naver Clova
-            LLM_API_KEY=${{ secrets.DEV_CLOVA_API_KEY }}
-            LLM_COMPLETION_URL=${{ secrets.DEV_CLOVA_COMPLETION_URL }}
-            
+            LLM_API_KEY=${{ secrets.PROD_CLOVA_API_KEY }}
+            LLM_COMPLETION_URL=${{ secrets.PROD_CLOVA_COMPLETION_URL }}
+
             # Slack
-            SLACK_WEBHOOK_URL=${{ secrets.DEV_SLACK_WEBHOOK_URL }}
+            SLACK_WEBHOOK_URL=${{ secrets.PROD_SLACK_WEBHOOK_URL }}
             EOF
-            
+
             # 배포
-            docker compose -f docker-compose.dev.yml pull app
-            docker compose -f docker-compose.dev.yml up -d --remove-orphans
-            
+            docker compose -f docker-compose.prod.yml pull app
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
             # 정리
             docker image prune -f
-            
+
             # 헬스체크
             sleep 60
             curl -f http://localhost:8080/actuator/health || exit 1
