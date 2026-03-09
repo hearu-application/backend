@@ -125,7 +125,7 @@ jobs:
           username: ${{ secrets.PROD_SERVER_USERNAME }}
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
           port: ${{ secrets.PROD_SERVER_PORT }}
-          source: "docker-compose.prod.yml,nginx/"
+          source: "docker-compose.prod.yml,nginx/,init-letsencrypt.sh"
           target: "~/hearu"
 
       - name: Deploy
@@ -168,6 +168,12 @@ jobs:
             # Slack
             SLACK_WEBHOOK_URL=${{ secrets.PROD_SLACK_WEBHOOK_URL }}
             EOF
+
+            # 최초 배포 시 SSL 인증서 발급
+            if [ ! -d "./certbot/conf/live/hearu.p-e.kr" ]; then
+              chmod +x init-letsencrypt.sh
+              ./init-letsencrypt.sh
+            fi
 
             # 배포
             docker compose -f docker-compose.prod.yml pull app
