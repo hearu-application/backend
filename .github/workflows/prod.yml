@@ -125,7 +125,7 @@ jobs:
           username: ${{ secrets.PROD_SERVER_USERNAME }}
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
           port: ${{ secrets.PROD_SERVER_PORT }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.prod.yml,nginx/"
           target: "~/hearu"
 
       - name: Deploy
@@ -172,10 +172,11 @@ jobs:
             # 배포
             docker compose -f docker-compose.prod.yml pull app
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 
             # 정리
             docker image prune -f
 
             # 헬스체크
             sleep 60
-            curl -f http://localhost:8080/actuator/health || exit 1
+            curl -f https://hearu.p-e.kr/actuator/health || exit 1

@@ -4,11 +4,34 @@ services:
   app:
     container_name: hearu-prod
     image: ${DOCKER_IMAGE}:${DOCKER_TAG}
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     env_file:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
     restart: unless-stopped
+
+  nginx:
+    container_name: nginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  certbot:
+    container_name: certbot
+    image: certbot/certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --deploy-hook \"docker exec nginx nginx -s reload\"; sleep 12h & wait $${!}; done;'"
