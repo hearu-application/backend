@@ -1,11 +1,11 @@
-package com.example.sideProject;
+package com.example.hearu;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SideProjectApplication {
+public class HearuApplication {
     public static void main(String[] args) {
-        SpringApplication.run(SideProjectApplication.class, args);
+        SpringApplication.run(HearuApplication.class, args);
     }
 }
