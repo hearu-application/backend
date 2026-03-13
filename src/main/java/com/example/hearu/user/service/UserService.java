@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
@@ -33,12 +33,10 @@ public class UserService {
         User user = getUserOrThrow(userId);
 
         // 닉네임 업데이트
-        user.updateNickname(request.getNickname());
+        user.updateNickname(request.nickname());
 
         // 엔티티 대신 DTO 반환
-        return NicknameUpdateResponse.builder()
-                .nickname(user.getNickName())
-                .build();
+        return new NicknameUpdateResponse(user.getNickName());
     }
 
     @Transactional(readOnly = true)

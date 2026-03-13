@@ -17,4 +17,6 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
     List<Diary> findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(User user, LocalDateTime start, LocalDateTime end);
 
     Optional<Diary> findByDiaryIdAndDeletedAtIsNull(Long id);
+
+    int countAllByUser_UserIdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 }

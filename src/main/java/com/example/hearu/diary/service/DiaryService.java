@@ -3,6 +3,7 @@ package com.example.hearu.diary.service;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
+import com.example.hearu.diary.dto.response.DiaryTodayCountResponse;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.service.UserService;
 import com.example.hearu.diary.dto.request.DiaryCreateRequest;
@@ -17,7 +18,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -30,6 +33,8 @@ public class DiaryService {
     private final UserService userService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
+    private static final int DIARY_DAILY_LIMIT = 10;
+
     @Transactional
     public DiaryCreateResponse createDiary(Long userId, DiaryCreateRequest request) {
 
@@ -38,6 +43,17 @@ public class DiaryService {
 
         // 2. User 닉네임이 존재하는지 판단(정책)
         user.validateUserNickNameExists();
+
+        // 3. 하루 일기 제한 검사(정책)
+        LocalDate today = LocalDate.now();
+        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+            userId,
+            today.atStartOfDay(),
+            today.atTime(LocalTime.MAX)
+        );
+        if (count >= DIARY_DAILY_LIMIT) {
+            throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
+        }
 
         // 3. Diary 엔티티 생성 및 저장
         Diary diary = Diary.create(
@@ -84,6 +100,19 @@ public class DiaryService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public DiaryTodayCountResponse getTodayDiaryCount(Long userId) {
+
+        // 1. 오늘 날짜 확인
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.atStartOfDay();
+        LocalDateTime end = today.atTime(LocalTime.MAX);
+
+        // 2. 오늘 일기 작성 횟수 조회
+        int todayDiaryCount = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(userId, start, end);
+
+        return new DiaryTodayCountResponse(todayDiaryCount);
+    }
 
     @Transactional(readOnly = true)
     public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {
