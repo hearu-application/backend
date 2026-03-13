@@ -46,10 +46,7 @@ public class AiResponseService {
         try {
             // 2. AI 응답 상태 COMPLETE 수정 & AI 응답 저장
             aiResponse.completeResponse(response);
-        } catch (BusinessException e) {
-            // 2. AI 응답 상태 FAILED 수정
-            aiResponse.failResponse();
-        } catch (Exception e) {
+        }  catch (Exception e) {
             // 2. AI 응답 상태 FAILED 수정
             log.warn("AI 응답 처리 중 시스템 오류. userId={}, diaryId={}", userId, diaryId, e);
             aiResponse.failResponse();
