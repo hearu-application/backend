@@ -38,7 +38,7 @@ public class AiResponseService {
     }
 
     @Transactional
-    public void completeAiResponse(Long userId, Long diaryId, String response) {
+    public void markedCompletedAndSaveResponse(Long userId, Long diaryId, String response) {
 
         // 1. AiResponse 엔티티 조회
         AiResponse aiResponse = getAiResponseOrThrow(userId, diaryId);
