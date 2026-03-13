@@ -66,8 +66,19 @@ public class AiResponseServiceTest {
     }
 
     @Nested
-    @DisplayName("AI 응답 엔티티 조회")
+    @DisplayName("AI 응답 조회")
     class GetAiResponse {
+
+        @Test
+        @DisplayName("일기가 없는 경우, 예외 처리")
+        void diary_not_found() {
+            given(diaryService.getDiaryOrThrow(1L, 1L))
+                .willThrow(new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND));
+
+            assertThatThrownBy(() -> aiResponseService.getAiResponse(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
+        }
 
         @Test
         @DisplayName("AI 응답이 없는 경우, 예외 처리")
@@ -81,13 +92,14 @@ public class AiResponseServiceTest {
         }
 
         @Test
-        @DisplayName("AI 응답과 일기 소유가자 다른 경우, 예외 처리")
+        @DisplayName("AI 응답과 일기 소유자가 다른 경우, 예외 처리")
         void ai_response_forbidden() {
             User otherUser = User.create("other@naver.com", ProviderType.KAKAO, "9999999999", Mockito.mock(Companion.class));
             ReflectionTestUtils.setField(otherUser, "userId", 2L);
             Diary otherDiary = Diary.create(otherUser, "다른 내용", EmotionType.JOY);
             ReflectionTestUtils.setField(otherDiary, "diaryId", 2L);
             AiResponse otherAiResponse = AiResponse.create(otherDiary);
+
             given(diaryService.getDiaryOrThrow(1L, 1L)).willReturn(diary);
             given(aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)).willReturn(Optional.of(otherAiResponse));
 
@@ -110,15 +122,15 @@ public class AiResponseServiceTest {
     }
 
     @Nested
-    @DisplayName("AI 응답 조회")
-    class GetAiResponseDetail {
+    @DisplayName("AI 응답 엔티티 조회")
+    class GetAiResponseOrThrow {
 
         @Test
         @DisplayName("일기가 없는 경우, 예외 처리")
         void diary_not_found() {
             given(diaryService.getDiaryOrThrow(1L, 1L)).willThrow(new BusinessException(DiaryErrorCode.DIARY_NOT_FOUND));
 
-            assertThatThrownBy(() -> aiResponseService.getAiResponse(1L, 1L))
+            assertThatThrownBy(() -> aiResponseService.getAiResponseOrThrow(1L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
         }
@@ -129,7 +141,7 @@ public class AiResponseServiceTest {
             given(diaryService.getDiaryOrThrow(1L, 1L)).willReturn(diary);
             given(aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> aiResponseService.getAiResponse(1L, 1L))
+            assertThatThrownBy(() -> aiResponseService.getAiResponseOrThrow(1L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND.getMessage());
         }
@@ -140,11 +152,11 @@ public class AiResponseServiceTest {
             given(diaryService.getDiaryOrThrow(1L, 1L)).willReturn(diary);
             given(aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)).willReturn(Optional.of(aiResponse));
 
-            AiResponse aiResponseOrThrow = aiResponseService.getAiResponseOrThrow(1L, 1L);
+            AiResponse result = aiResponseService.getAiResponseOrThrow(1L, 1L);
 
-            assertThat(aiResponseOrThrow.getAiResponseId()).isEqualTo(aiResponse.getAiResponseId());
-            assertThat(aiResponseOrThrow.getResponse()).isEqualTo(aiResponse.getResponse());
-            assertThat(aiResponseOrThrow.getAiResponseStatusType()).isEqualTo(aiResponse.getAiResponseStatusType());
+            assertThat(result.getAiResponseId()).isEqualTo(aiResponse.getAiResponseId());
+            assertThat(result.getResponse()).isEqualTo(aiResponse.getResponse());
+            assertThat(result.getAiResponseStatusType()).isEqualTo(aiResponse.getAiResponseStatusType());
         }
     }
 
@@ -164,7 +176,7 @@ public class AiResponseServiceTest {
         }
 
         @Test
-        @DisplayName("ai 응답이 없는 경우, 예외 처리")
+        @DisplayName("AI 응답이 없는 경우, 예외 처리")
         void ai_response_not_found() {
             given(diaryService.getDiaryOrThrow(1L, 1L)).willReturn(diary);
             given(aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)).willReturn(Optional.empty());
@@ -203,7 +215,7 @@ public class AiResponseServiceTest {
     }
 
     @Nested
-    @DisplayName("AI 응답 상태 Failed로 수정")
+    @DisplayName("AI 응답 상태 FAILED로 수정")
     class AiResponseMarkedFailed {
 
         @Test
@@ -218,7 +230,7 @@ public class AiResponseServiceTest {
         }
 
         @Test
-        @DisplayName("ai 응답이 없는 경우, 예외 처리")
+        @DisplayName("AI 응답이 없는 경우, 예외 처리")
         void ai_response_not_found() {
             given(diaryService.getDiaryOrThrow(1L, 1L)).willReturn(diary);
             given(aiResponseRepository.findByDiaryAndDeletedAtIsNull(diary)).willReturn(Optional.empty());
