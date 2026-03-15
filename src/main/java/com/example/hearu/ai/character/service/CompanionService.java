@@ -12,7 +12,9 @@ import com.example.hearu.ai.character.infrastructure.CompanionRepository;
 import com.example.hearu.common.util.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,11 +33,17 @@ public class CompanionService {
 
     public Companion getDefaultOrThrow() {
         return companionRepository.findByIsDefaultTrue()
-            .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));
+            .orElseThrow(() -> {
+                log.warn("기본 캐릭터가 존재하지 않습니다.");
+                return new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND);
+            });
     }
 
     public Companion getOrThrow(Long companionId) {
         return companionRepository.findById(companionId)
-            .orElseThrow(() -> new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND));
+            .orElseThrow(() -> {
+                log.warn("캐릭터가 존재하지 않습니다. companionId={}", companionId);
+                return new BusinessException(CompanionErrorCode.COMPANION_NOT_FOUND);
+            });
     }
 }
