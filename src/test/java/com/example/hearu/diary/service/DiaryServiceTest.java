@@ -1,0 +1,384 @@
+package com.example.hearu.diary.service;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.YearMonth;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.example.hearu.ai.character.domain.Companion;
+import com.example.hearu.auth.domain.ProviderType;
+import com.example.hearu.common.util.exception.BusinessException;
+import com.example.hearu.diary.domain.Diary;
+import com.example.hearu.diary.domain.EmotionType;
+import com.example.hearu.diary.domain.error.DiaryErrorCode;
+import com.example.hearu.diary.dto.request.DiaryCreateRequest;
+import com.example.hearu.diary.dto.response.DiaryCreateResponse;
+import com.example.hearu.diary.dto.response.DiaryDetailResponse;
+import com.example.hearu.diary.dto.response.DiaryTodayCountResponse;
+import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
+import com.example.hearu.diary.infrastructure.DiaryRepository;
+import com.example.hearu.user.domain.User;
+import com.example.hearu.user.domain.error.UserErrorCode;
+import com.example.hearu.user.service.UserService;
+
+@ExtendWith(MockitoExtension.class)
+public class DiaryServiceTest {
+
+    @Mock
+    DiaryRepository diaryRepository;
+
+    @Mock
+    UserService userService;
+
+    @Mock
+    ApplicationEventPublisher applicationEventPublisher;
+
+    @InjectMocks
+    DiaryService diaryService;
+
+    private User user;
+    private Diary diary;
+
+    @BeforeEach
+    void setUp() {
+        Companion companion = Mockito.mock(Companion.class);
+
+        user = User.create(
+            "example@naver.com",
+            ProviderType.KAKAO,
+            "1234567890",
+            companion
+        );
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        diary = Diary.create(user, "내용", EmotionType.JOY);
+        ReflectionTestUtils.setField(diary, "diaryId", 1L);
+    }
+
+    @Nested
+    @DisplayName("일기 생성")
+    class CreateDiary {
+
+        private DiaryCreateRequest request;
+
+        @BeforeEach
+        void setUp() {
+            request = new DiaryCreateRequest("내용", EmotionType.JOY);
+        }
+
+        @Test
+        @DisplayName("사용자가 없는 경우, 예외 처리")
+        void user_not_found() {
+            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> diaryService.createDiary(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("닉네임이 없는 경우, 예외 처리")
+        void nickname_not_exist() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+
+            assertThatThrownBy(() -> diaryService.createDiary(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.NICKNAME_REQUIRED.getMessage());
+        }
+
+        @Test
+        @DisplayName("하루 일기 제한에 걸리는 경우, 예외 처리")
+        void limit_exceeded() {
+            user.updateNickname("용준");
+            LocalDate today = LocalDate.now();
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+                1L, today.atStartOfDay(), today.atTime(LocalTime.MAX)
+            )).willReturn(10);
+
+            assertThatThrownBy(() -> diaryService.createDiary(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            user.updateNickname("용준");
+            LocalDate today = LocalDate.now();
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+                1L, today.atStartOfDay(), today.atTime(LocalTime.MAX)
+            )).willReturn(1);
+
+            DiaryCreateResponse response = diaryService.createDiary(1L, request);
+
+            // 1. 응답값 검증
+            assertThat(response.content()).isEqualTo(request.content());
+            assertThat(response.emotionType()).isEqualTo(request.emotionType());
+
+            // 2. save() 호출 검증
+            verify(diaryRepository).save(any(Diary.class));
+
+            // 3. 이벤트 검증
+            ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
+            verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+
+            DiaryAiResponseRequestedEvent event = eventCaptor.getValue();
+            assertThat(event.content()).isEqualTo(request.content());
+            assertThat(event.emotionType()).isEqualTo(request.emotionType());
+            assertThat(event.nickName()).isEqualTo(user.getNickName());
+        }
+    }
+
+    @Nested
+    @DisplayName("일기 조회")
+    class GetDiaryOrThrow {
+
+        @Test
+        @DisplayName("일기가 없는 경우, 예외 처리")
+        void diary_not_found() {
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> diaryService.getDiaryOrThrow(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            Diary result = diaryService.getDiaryOrThrow(1L, 1L);
+
+            assertThat(result).isEqualTo(diary);
+        }
+    }
+
+    @Nested
+    @DisplayName("일기 상세 조회")
+    class GetDiaryDetail {
+
+        @Test
+        @DisplayName("일기가 없는 경우, 예외 처리")
+        void diary_not_found() {
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> diaryService.getDiaryDetail(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("권한이 없는 경우, 예외 처리")
+        void forbidden_diary() {
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            assertThatThrownBy(() -> diaryService.getDiaryDetail(2L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            DiaryDetailResponse result = diaryService.getDiaryDetail(1L, 1L);
+
+            assertThat(result.diaryId()).isEqualTo(diary.getDiaryId());
+            assertThat(result.content()).isEqualTo(diary.getContent());
+            assertThat(result.emotionType()).isEqualTo(diary.getEmotionType());
+        }
+    }
+
+    @Nested
+    @DisplayName("오늘 일기 작성 횟수 조회")
+    class GetTodayDiaryCount {
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            LocalDate today = LocalDate.now();
+            LocalDateTime start = today.atStartOfDay();
+            LocalDateTime end = today.atTime(LocalTime.MAX);
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(1L, start, end)).willReturn(1);
+
+            DiaryTodayCountResponse result = diaryService.getTodayDiaryCount(1L);
+
+            assertThat(result.todayDiaryCount()).isEqualTo(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("일기 월별 캘린더 조회")
+    class GetCalendarDiaries {
+
+        private YearMonth yearMonth;
+
+        @BeforeEach
+        void setUp() {
+            yearMonth = YearMonth.now();
+        }
+
+        @Test
+        @DisplayName("사용자가 없는 경우, 예외 처리")
+        void user_not_found() {
+            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> diaryService.getCalendarDiaries(1L, yearMonth))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+            LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+            List<Diary> diaries = List.of(
+                Diary.create(user, "내용1", EmotionType.ANGER),
+                Diary.create(user, "내용2", EmotionType.NEUTRAL)
+            );
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(user, start, end))
+                .willReturn(diaries);
+
+            List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
+
+            assertThat(result.getFirst().emotionType()).isEqualTo(diaries.getFirst().getEmotionType());
+            assertThat(result.getFirst().content()).isEqualTo(diaries.getFirst().getContent());
+            assertThat(result.get(1).emotionType()).isEqualTo(diaries.get(1).getEmotionType());
+            assertThat(result.get(1).content()).isEqualTo(diaries.get(1).getContent());
+        }
+    }
+
+    @Nested
+    @DisplayName("일기 삭제")
+    class DeleteDiary {
+
+        @Test
+        @DisplayName("사용자가 없는 경우, 예외 처리")
+        void user_not_found() {
+            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> diaryService.deleteDiary(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("일기가 없는 경우, 예외 처리")
+        void diary_not_found() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> diaryService.deleteDiary(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("본인 일기가 아닌 경우, 예외 처리")
+        void forbidden_diary() {
+            Companion companion = Mockito.mock(Companion.class);
+            User user1 = User.create("example1@naver.com", ProviderType.KAKAO, "11111111111111", companion);
+            given(userService.getUserOrThrow(2L)).willReturn(user1);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            assertThatThrownBy(() -> diaryService.deleteDiary(2L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            diaryService.deleteDiary(1L, 1L);
+
+            assertThat(diary.getDeletedAt()).isNotNull();
+            assertThat(diary.getAiResponse().getDeletedAt()).isNotNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("AI 응답 요청")
+    class RequestAiResponse {
+
+        @Test
+        @DisplayName("사용자가 없는 경우, 예외 처리")
+        void user_not_found() {
+            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> diaryService.requestAiResponse(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("일기가 없는 경우, 예외 처리")
+        void diary_not_found() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> diaryService.requestAiResponse(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("권한이 없는 경우, 예외 처리")
+        void forbidden_diary() {
+            User otherUser = User.create("other@naver.com", ProviderType.GOOGLE, "4444444444", mock(Companion.class));
+            given(userService.getUserOrThrow(2L)).willReturn(otherUser);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            assertThatThrownBy(() -> diaryService.requestAiResponse(2L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_ACCESS_DENIED.getMessage());
+        }
+
+        @Test
+        @DisplayName("성공")
+        void success() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+
+            diaryService.requestAiResponse(1L, 1L);
+
+            ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
+            verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+
+            DiaryAiResponseRequestedEvent event = eventCaptor.getValue();
+            assertThat(event.diaryId()).isEqualTo(diary.getDiaryId());
+            assertThat(event.content()).isEqualTo(diary.getContent());
+            assertThat(event.emotionType()).isEqualTo(diary.getEmotionType());
+            assertThat(event.userId()).isEqualTo(user.getUserId());
+            assertThat(event.nickName()).isEqualTo(user.getNickName());
+        }
+    }
+}

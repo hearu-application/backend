@@ -72,7 +72,7 @@ public class DiaryAiResponseRequestedEventListener {
             String response = jsonNode.get("response").asText();
 
             // 5. ai 응답 완료 및 저장
-            aiResponseService.completeAiResponse(
+            aiResponseService.markedCompletedAndSaveResponse(
                     event.userId(),
                     event.diaryId(),
                     response
