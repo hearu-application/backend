@@ -146,7 +146,7 @@ public class DiaryServiceTest {
             DiaryAiResponseRequestedEvent event = eventCaptor.getValue();
             assertThat(event.content()).isEqualTo(request.content());
             assertThat(event.emotionType()).isEqualTo(request.emotionType());
-            assertThat(event.nickName()).isEqualTo(user.getNickName());
+            assertThat(event.nickName()).isEqualTo(user.getNickname());
         }
     }
 
@@ -378,7 +378,7 @@ public class DiaryServiceTest {
             assertThat(event.content()).isEqualTo(diary.getContent());
             assertThat(event.emotionType()).isEqualTo(diary.getEmotionType());
             assertThat(event.userId()).isEqualTo(user.getUserId());
-            assertThat(event.nickName()).isEqualTo(user.getNickName());
+            assertThat(event.nickName()).isEqualTo(user.getNickname());
         }
     }
 }

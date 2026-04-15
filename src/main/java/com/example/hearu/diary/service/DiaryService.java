@@ -42,7 +42,7 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. User 닉네임이 존재하는지 판단(정책)
-        user.validateUserNickNameExists();
+        user.validateNicknameExists();
 
         // 3. 하루 일기 제한 검사(정책)
         LocalDate today = LocalDate.now();
@@ -70,7 +70,7 @@ public class DiaryService {
                 diary.getContent(),
                 diary.getEmotionType(),
                 user.getUserId(),
-                user.getNickName()
+                user.getNickname()
             )
         );
 
@@ -180,7 +180,7 @@ public class DiaryService {
                         diary.getContent(),
                         diary.getEmotionType(),
                         user.getUserId(),
-                        user.getNickName()
+                        user.getNickname()
                 )
         );
     }

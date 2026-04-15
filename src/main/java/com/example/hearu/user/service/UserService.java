@@ -36,10 +36,9 @@ public class UserService {
         user.updateNickname(request.nickname());
 
         // 엔티티 대신 DTO 반환
-        return new NicknameUpdateResponse(user.getNickName());
+        return new NicknameUpdateResponse(user.getNickname());
     }
 
-    @Transactional(readOnly = true)
     public User getUserOrThrow(Long userId) {
         return userRepository.findByUserIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> {
@@ -55,7 +54,7 @@ public class UserService {
 
         // 2. 엔티티(User)를 응답 DTO로 변환하여 반환
         return new ProfileResponse(
-                user.getNickName(),
+                user.getNickname(),
                 user.getEmail(),
                 user.getCompanion().getId(),
                 user.getToneType(),
