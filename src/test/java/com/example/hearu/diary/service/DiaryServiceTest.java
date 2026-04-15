@@ -146,7 +146,7 @@ public class DiaryServiceTest {
             DiaryAiResponseRequestedEvent event = eventCaptor.getValue();
             assertThat(event.content()).isEqualTo(request.content());
             assertThat(event.emotionType()).isEqualTo(request.emotionType());
-            assertThat(event.nickName()).isEqualTo(user.getNickname());
+            assertThat(event.nickname()).isEqualTo(user.getNickname());
         }
     }
 
@@ -278,19 +278,8 @@ public class DiaryServiceTest {
     class DeleteDiary {
 
         @Test
-        @DisplayName("사용자가 없는 경우, 예외 처리")
-        void user_not_found() {
-            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
-
-            assertThatThrownBy(() -> diaryService.deleteDiary(1L, 1L))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
-        }
-
-        @Test
         @DisplayName("일기가 없는 경우, 예외 처리")
         void diary_not_found() {
-            given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
 
             assertThatThrownBy(() -> diaryService.deleteDiary(1L, 1L))
@@ -301,9 +290,6 @@ public class DiaryServiceTest {
         @Test
         @DisplayName("본인 일기가 아닌 경우, 예외 처리")
         void forbidden_diary() {
-            Companion companion = Mockito.mock(Companion.class);
-            User user1 = User.create("example1@naver.com", ProviderType.KAKAO, "11111111111111", companion);
-            given(userService.getUserOrThrow(2L)).willReturn(user1);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
 
             assertThatThrownBy(() -> diaryService.deleteDiary(2L, 1L))
@@ -314,7 +300,6 @@ public class DiaryServiceTest {
         @Test
         @DisplayName("성공")
         void success() {
-            given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
 
             diaryService.deleteDiary(1L, 1L);
@@ -378,7 +363,7 @@ public class DiaryServiceTest {
             assertThat(event.content()).isEqualTo(diary.getContent());
             assertThat(event.emotionType()).isEqualTo(diary.getEmotionType());
             assertThat(event.userId()).isEqualTo(user.getUserId());
-            assertThat(event.nickName()).isEqualTo(user.getNickname());
+            assertThat(event.nickname()).isEqualTo(user.getNickname());
         }
     }
 }
