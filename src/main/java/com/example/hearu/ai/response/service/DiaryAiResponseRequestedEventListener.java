@@ -45,6 +45,8 @@ public class DiaryAiResponseRequestedEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(DiaryAiResponseRequestedEvent event) {
 
+        log.info("[AI][Start] diaryId={}, userId={}", event.diaryId(), event.userId());
+
         try {
             // 1. prompt 생성
             String systemPrompt = promptBuilder.systemPromptBuild();
@@ -66,6 +68,7 @@ public class DiaryAiResponseRequestedEventListener {
             // 3. llm 외부 api 호출
             ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(messages);
             String content = clovaChatResponse.result().message().content();
+            log.info("[AI][CALL_SUCCESS] diaryId={}, userId={}", event.diaryId(), event.userId());
 
             // 4. Json으로 파싱 및 검증 dev
             JsonNode jsonNode = objectMapper.readTree(content);
@@ -77,6 +80,7 @@ public class DiaryAiResponseRequestedEventListener {
                     event.diaryId(),
                     response
             );
+            log.info("[AI][Complete] diaryId={}, userId={}", event.diaryId(), event.userId());
 
         } catch (ResourceAccessException | HttpServerErrorException e) {
             // retry / recover가 처리
@@ -85,10 +89,11 @@ public class DiaryAiResponseRequestedEventListener {
         } catch (Exception e) {
             // 🔥 여기서 모든 구멍을 막는다
             log.error(
-                "[AI][Unhandled] diaryId={}, userId={}, reason={}",
+                "[AI][Unhandled] diaryId={}, userId={}, reason={}, message={}",
                 event.diaryId(),
                 event.userId(),
-                e.getClass().getSimpleName()
+                e.getClass().getSimpleName(),
+                e.getMessage()
             );
             aiResponseService.markFailed(
                 event.userId(),
@@ -99,10 +104,11 @@ public class DiaryAiResponseRequestedEventListener {
 
     @Recover
     public void recover(ResourceAccessException e, DiaryAiResponseRequestedEvent event) {
-        log.warn("[AI][RetryFail][Network] diaryId={}, userId={}, reason={}",
+        log.warn("[AI][RetryFail][Network] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(),
             event.userId(),
-            e.getClass().getSimpleName()
+            e.getClass().getSimpleName(),
+            e.getMessage()
         );
         aiResponseService.markFailed(event.userId(), event.diaryId());
     }
@@ -110,10 +116,11 @@ public class DiaryAiResponseRequestedEventListener {
     @Recover
     public void recover(HttpServerErrorException e, DiaryAiResponseRequestedEvent event) {
         log.error(
-            "[AI][RetryFail][5xx] diaryId={}, userId={}, reason={}",
+            "[AI][RetryFail][5xx] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(),
             event.userId(),
-            e.getClass().getSimpleName()
+            e.getClass().getSimpleName(),
+            e.getMessage()
         );
         aiResponseService.markFailed(event.userId(), event.diaryId());
     }
