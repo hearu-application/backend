@@ -75,6 +75,7 @@ public class PromptBuilder {
 
             [출력 형식]
             JSON 형식으로 응답만 출력하여라.
+            response 값은 반드시 300자 이내로 작성하여라.
             {
                 "response": "응답 내용"
             }
