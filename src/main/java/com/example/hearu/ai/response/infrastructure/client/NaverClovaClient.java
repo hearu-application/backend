@@ -37,7 +37,7 @@ public class NaverClovaClient {
     public static final int TOP_K = 0;
     public static final double TOP_P = 0.8;
     public static final double REPEAT_PENALTY = 1.1;
-    public static final int MAX_TOKENS = 300;
+    public static final int MAX_TOKENS = 1000;
 
     public ClovaChatResponse getAiResponse(List<Message> messages)  {
 
