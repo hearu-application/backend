@@ -65,6 +65,7 @@ public class DiaryAiResponseRequestedEventListener {
 
             // 3. llm 외부 api 호출
             ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(messages);
+            log.warn("[AI][STOP_REASON] diaryId={}, userId={}, stopReason={}", event.diaryId(), event.userId(), clovaChatResponse.result().stopReason());
             String content = clovaChatResponse.result().message().content();
 
             // 4. Json으로 파싱 및 검증 dev
