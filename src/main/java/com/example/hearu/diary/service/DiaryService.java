@@ -64,6 +64,7 @@ public class DiaryService {
         diaryRepository.save(diary);
 
         // 5. Ai 응답 이벤트 발행
+        log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
             new DiaryAiResponseRequestedEvent(
                 diary.getDiaryId(),
@@ -170,6 +171,7 @@ public class DiaryService {
         diary.validateOwner(userId);
 
         // 4. Ai 응답 이벤트 발행
+        log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
                 new DiaryAiResponseRequestedEvent(
                         diary.getDiaryId(),
