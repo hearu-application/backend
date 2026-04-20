@@ -42,7 +42,7 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 2. User 닉네임이 존재하는지 판단(정책)
-        user.validateUserNickNameExists();
+        user.validateNicknameExists();
 
         // 3. 하루 일기 제한 검사(정책)
         LocalDate today = LocalDate.now();
@@ -55,7 +55,7 @@ public class DiaryService {
             throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
         }
 
-        // 3. Diary 엔티티 생성 및 저장
+        // 4. Diary 엔티티 생성 및 저장
         Diary diary = Diary.create(
                 user,
                 request.content(),
@@ -63,7 +63,7 @@ public class DiaryService {
         );
         diaryRepository.save(diary);
 
-        // 4. Ai 응답 이벤트 발행
+        // 5. Ai 응답 이벤트 발행
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
             new DiaryAiResponseRequestedEvent(
@@ -71,11 +71,11 @@ public class DiaryService {
                 diary.getContent(),
                 diary.getEmotionType(),
                 user.getUserId(),
-                user.getNickName()
+                user.getNickname()
             )
         );
 
-        // 5. 생성된 일기 정보 반환
+        // 6. 생성된 일기 정보 반환
         return new DiaryCreateResponse(
                 diary.getDiaryId(),
                 diary.getContent(),
@@ -139,22 +139,18 @@ public class DiaryService {
 
     @Transactional
     public void deleteDiary(Long userId, Long diaryId) {
-        // 1. User 엔티티 조회
-        User user = userService.getUserOrThrow(userId);
-
-        // 2. 일기 조회
+        // 1. 일기 조회
         Diary diary = getDiaryOrThrow(userId, diaryId);
 
-        // 3. 본인 일기 검증
-        diary.validateOwner(user.getUserId());
+        // 2. 본인 일기 검증
+        diary.validateOwner(userId);
 
-        // 4. 일기 삭제
+        // 3. 일기 삭제
         diary.softDelete();
         diary.getAiResponse().softDelete();
     }
 
 
-    @Transactional(readOnly = true)
     public Diary getDiaryOrThrow(Long userId, Long diaryId) {
         return diaryRepository.findByDiaryIdAndDeletedAtIsNull(diaryId)
                 .orElseThrow(() -> {
@@ -182,7 +178,7 @@ public class DiaryService {
                         diary.getContent(),
                         diary.getEmotionType(),
                         user.getUserId(),
-                        user.getNickName()
+                        user.getNickname()
                 )
         );
     }

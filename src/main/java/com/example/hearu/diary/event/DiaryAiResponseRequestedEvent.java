@@ -7,6 +7,6 @@ public record DiaryAiResponseRequestedEvent(
     String content,
     EmotionType emotionType,
     Long userId,
-    String nickName
+    String nickname
 ) {
 }

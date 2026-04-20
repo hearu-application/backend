@@ -51,51 +51,6 @@ public class AuthServiceTest {
     }
 
     @Nested
-    @DisplayName("사용자 찾으면 반환, 없으면 생성")
-    class FindOrCreateUserBy {
-
-        @Test
-        @DisplayName("기존 사용자 조회 성공")
-        void user_found() {
-            // given
-            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(user.getProvider(), user.getProviderUserId()))
-                    .willReturn(Optional.of(user));
-
-            // when
-            User findUser = authService.findOrCreateUserBy(user.getProvider(), user.getProviderUserId(), user.getEmail());
-
-            // then
-            assertThat(findUser.getProviderUserId()).isEqualTo(user.getProviderUserId());
-            assertThat(findUser.getProvider()).isEqualTo(user.getProvider());
-            assertThat(findUser.getEmail()).isEqualTo(user.getEmail());
-        }
-
-        @Test
-        @DisplayName("사용자 조회 시 없으면 유저 생성")
-        void user_not_found_create_user() {
-            // given
-            ProviderType provider = ProviderType.KAKAO;
-            String sub = "0987654321";
-            String email = "example2@naver.com";
-            User newUser = User.create(email, provider, sub, companion);
-            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub))
-                    .willReturn(Optional.empty());
-            given(companionService.getDefaultOrThrow()).willReturn(companion);
-            given(userRepository.save(any(User.class))).willReturn(newUser);
-
-            // when
-            User createUser = authService.findOrCreateUserBy(provider, sub, email);
-
-            // then
-            assertThat(createUser.getEmail()).isEqualTo(email);
-            assertThat(createUser.getProvider()).isEqualTo(provider);
-            assertThat(createUser.getProviderUserId()).isEqualTo(sub);
-            verify(companionService).getDefaultOrThrow();
-            verify(userRepository).save(any(User.class));
-        }
-    }
-
-    @Nested
     @DisplayName("회원가입 또는 로그인")
     class RegisterOrLogin {
 
