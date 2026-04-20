@@ -37,21 +37,19 @@ public class RefreshTokenService {
     @Transactional
     public void issueInitialToken(User user, String newRefreshToken) {
 
+        Claims claims = jwtProvider.parseClaims(newRefreshToken);
+        LocalDateTime expiresAt = jwtProvider.extractExpiration(claims);
+
         RefreshToken refreshToken = authRepository.findById(user.getUserId())
             .map(existing -> {
-                existing.updateToken(newRefreshToken);
+                existing.updateToken(newRefreshToken, expiresAt);
                 return existing;
             })
-            .orElseGet(() -> {
-                Claims claims = jwtProvider.parseClaims(newRefreshToken);
-                LocalDateTime expiresAt = jwtProvider.extractExpiration(claims);
-
-                return RefreshToken.create(
-                    user.getUserId(),
-                    newRefreshToken,
-                    expiresAt
-                );
-            });
+            .orElseGet(() -> RefreshToken.create(
+                user.getUserId(),
+                newRefreshToken,
+                expiresAt
+            ));
 
         authRepository.save(refreshToken);
     }
@@ -87,9 +85,10 @@ public class RefreshTokenService {
         // 3. 새 토큰 발급
         String accessToken = jwtProvider.createAccessToken(userId);
         String refreshToken = jwtProvider.createRefreshToken(userId);
+        LocalDateTime newExpiresAt = jwtProvider.getRefreshTokenExpiresAt();
 
         // 4. Refresh token 저장
-        storedRefreshToken.updateToken(refreshToken);
+        storedRefreshToken.updateToken(refreshToken, newExpiresAt);
 
         // 5. Refresh token 반환
         return new RefreshTokenResponse(
