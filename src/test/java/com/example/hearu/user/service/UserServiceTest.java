@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -61,185 +62,217 @@ public class UserServiceTest {
         );
     }
 
-    @Test
-    @DisplayName("사용자가 없는 경우, 예외 처리")
-    void user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+    @Nested
+    @DisplayName("사용자 조회 (getUserOrThrow)")
+    class GetUserOrThrow {
 
-        // when & then
-        assertThatThrownBy(() -> userService.getUserOrThrow(1L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.getUserOrThrow(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("사용자가 있는 경우 User 엔티티 반환")
+        void user_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+
+            // when
+            User userOrThrow = userService.getUserOrThrow(1L);
+
+            // then
+            assertThat(userOrThrow).isSameAs(user);
+        }
     }
 
-    @Test
-    @DisplayName("사용자가 있는 경우, User 엔티티 반환")
-    void user_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+    @Nested
+    @DisplayName("닉네임 업데이트")
+    class UpdateNickname {
 
-        // when
-        User userOrThrow = userService.getUserOrThrow(1L);
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+            NicknameUpdateRequest request = new NicknameUpdateRequest("용준");
 
-        // then
-        assertThat(userOrThrow).isSameAs(user);
+            // when & then
+            assertThatThrownBy(() -> userService.updateNickname(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("성공")
+        void update_nickname() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+            NicknameUpdateRequest request = new NicknameUpdateRequest("용준");
+
+            // when
+            NicknameUpdateResponse nicknameUpdateResponse = userService.updateNickname(1L, request);
+
+            // then
+            assertThat(nicknameUpdateResponse.nickname()).isEqualTo("용준");
+        }
     }
 
-    @Test
-    @DisplayName("닉네임 업데이트 사용자가 없는 경우, 예외 처리")
-    void update_nickname_user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
-        NicknameUpdateRequest request = new NicknameUpdateRequest("용준");
+    @Nested
+    @DisplayName("프로필 조회")
+    class GetProfile {
 
-        // when & then
-        assertThatThrownBy(() -> userService.updateNickname(1L, request))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.getProfile(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("성공")
+        void profile_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+            user.updateNickname("용준");
+
+            // when
+            ProfileResponse profile = userService.getProfile(1L);
+
+            // then
+            assertThat(profile.nickname()).isEqualTo(user.getNickname());
+            assertThat(profile.email()).isEqualTo(user.getEmail());
+            assertThat(profile.toneType()).isEqualTo(user.getToneType());
+            assertThat(profile.companionId()).isEqualTo(user.getCompanion().getId());
+            assertThat(profile.hasPassword()).isFalse();
+        }
     }
 
-    @Test
-    @DisplayName("닉네임 업데이트 성공")
-    void update_nickname() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-        NicknameUpdateRequest request = new NicknameUpdateRequest("용준");
+    @Nested
+    @DisplayName("로그아웃")
+    class Logout {
 
-        // when
-        NicknameUpdateResponse nicknameUpdateResponse = userService.updateNickname(1L, request);
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
 
-        // then
-        assertThat(nicknameUpdateResponse.nickname()).isEqualTo("용준");
+            // when & then
+            assertThatThrownBy(() -> userService.logout(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("성공 - 리프레시 토큰 삭제")
+        void logout() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+
+            // when
+            userService.logout(1L);
+
+            // then
+            verify(refreshTokenService, times(1)).deleteRefreshToken(1L);
+        }
     }
 
-    @Test
-    @DisplayName("프로필 조회 사용자가 없는 경우, 예외 처리")
-    void profile_found_user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+    @Nested
+    @DisplayName("회원탈퇴")
+    class Delete {
 
-        // when & then
-        assertThatThrownBy(() -> userService.getProfile(1L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> userService.delete(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
+
+        @Test
+        @DisplayName("성공 - 리프레시 토큰 삭제 및 소프트 딜리트")
+        void user_delete() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+
+            // when
+            userService.delete(1L);
+
+            // then
+            verify(refreshTokenService, times(1)).deleteRefreshToken(1L);
+            assertThat(user.getDeletedAt()).isNotNull();
+        }
     }
 
-    @Test
-    @DisplayName("프로필 조회 성공")
-    void profile_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-        user.updateNickname("용준");
+    @Nested
+    @DisplayName("AI 설정 업데이트")
+    class UpdateAiSettings {
 
-        // when
-        ProfileResponse profile = userService.getProfile(1L);
+        @Test
+        @DisplayName("사용자가 없는 경우 예외 발생")
+        void user_not_found() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(1L, ToneType.INFORMAL);
 
-        // then
-        assertThat(profile.nickname()).isEqualTo(user.getNickName());
-        assertThat(profile.email()).isEqualTo(user.getEmail());
-        assertThat(profile.toneType()).isEqualTo(user.getToneType());
-    }
+            // when & then
+            assertThatThrownBy(() -> userService.updateAiSettings(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("사용자를 찾을 수 없습니다.");
+        }
 
-    @Test
-    @DisplayName("로그아웃 사용자가 없는 경우, 예외 처리")
-    void logout_user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+        @Test
+        @DisplayName("companionId와 toneType 모두 값이 있는 경우 - 두 필드 모두 업데이트")
+        void update_ai_settings_both_fields_present() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+            Companion companion = Companion.create(
+                "빙빙이",
+                "설명",
+                "페르소나",
+                "행동규칙",
+                "예시"
+            );
+            given(companionService.getOrThrow(2L)).willReturn(companion);
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(2L, ToneType.INFORMAL);
 
-        // when & then
-        assertThatThrownBy(() -> userService.logout(1L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
-    }
+            // when
+            userService.updateAiSettings(1L, request);
 
-    @Test
-    @DisplayName("로그아웃 성공")
-    void logout() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+            // then
+            assertThat(user.getToneType()).isEqualTo(ToneType.INFORMAL);
+            assertThat(user.getCompanion()).isSameAs(companion);
+        }
 
-        // when
-        userService.logout(1L);
+        @Test
+        @DisplayName("companionId와 toneType 모두 null인 경우 - 기존 설정 유지")
+        void update_ai_settings_both_fields_null() {
+            // given
+            given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
+            ToneType original = user.getToneType();
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(null, null);
 
-        // then
-        verify(refreshTokenService, times(1)).deleteRefreshToken(1L);
-    }
+            // when
+            userService.updateAiSettings(1L, request);
 
-    @Test
-    @DisplayName("회원탈퇴 사용자가 없는 경우, 예외 처리")
-    void user_delete_user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> userService.delete(1L))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
-    }
-
-    @Test
-    @DisplayName("회원탈퇴 성공")
-    void user_delete() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-
-        // when
-        userService.delete(1L);
-
-        // then
-        verify(refreshTokenService, times(1)).deleteRefreshToken(1L);
-        assertThat(user.getDeletedAt()).isNotNull();
-    }
-
-    @Test
-    @DisplayName("AI 설정 ToneType 사용자가 없는 경우, 예외 처리")
-    void update_ai_settings_user_not_found() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
-        UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(1L, ToneType.INFORMAL);
-
-        // when & then
-        assertThatThrownBy(() -> userService.updateAiSettings(1L, request))
-            .isInstanceOf(BusinessException.class)
-            .hasMessage("사용자를 찾을 수 없습니다.");
-    }
-
-    @Test
-    @DisplayName("AI 설정 companionId와 ToneType 필드가 null이 아닌 경우")
-    void update_ai_settings_tone_type_is_not_null() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-        Companion companion = Companion.create(
-            "빙빙이",
-            "설명",
-            "페르소나",
-            "행동규칙",
-            "예시"
-        );
-        given(companionService.getOrThrow(2L)).willReturn(companion);
-        UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(2L, ToneType.INFORMAL);
-
-        // when
-        userService.updateAiSettings(1L, request);
-
-        // then
-        assertThat(user.getToneType()).isEqualTo(ToneType.INFORMAL);
-        assertThat(user.getCompanion()).isSameAs(companion);
-    }
-
-    @Test
-    @DisplayName("AI 설정 companionId와 ToneType 필드가 null인 경우")
-    void update_ai_settings_tone_type_is_null() {
-        // given
-        given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-        ToneType original = user.getToneType();
-        UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(null,null);
-
-        // when
-        userService.updateAiSettings(1L, request);
-
-        // then
-        assertThat(user.getToneType()).isEqualTo(original);
+            // then
+            assertThat(user.getToneType()).isEqualTo(original);
+        }
     }
 }
