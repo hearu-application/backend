@@ -50,12 +50,12 @@ public class AuthController {
     public ResponseEntity<ApiResponse<RefreshTokenResponse>> getAccessToken(
             @RequestBody @Valid RefreshTokenRequest request
     ) {
-        RefreshTokenResponse RefreshTokenResponse = refreshTokenService.getNewRefreshTokenAndAccessToken(request);
+        RefreshTokenResponse response = refreshTokenService.getNewRefreshTokenAndAccessToken(request);
 
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "Access Token 발급에 성공했습니다.",
-                        RefreshTokenResponse
+                        response
                 )
         );
     }
