@@ -76,6 +76,10 @@ public class JwtProvider {
         );
     }
 
+    public LocalDateTime getRefreshTokenExpiresAt() {
+        return LocalDateTime.now().plus(refreshTokenExpireTime);
+    }
+
     public Authentication createAuthentication(Long userId) {
         return new UsernamePasswordAuthenticationToken(
                 userId,

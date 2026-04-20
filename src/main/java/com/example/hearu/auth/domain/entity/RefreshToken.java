@@ -32,7 +32,8 @@ public class RefreshToken {
         return new RefreshToken(userId, token, expiresAt);
     }
 
-    public void updateToken(String token) {
+    public void updateToken(String token, LocalDateTime newExpiresAt) {
         this.token = token;
+        this.expiresAt = newExpiresAt;
     }
 }

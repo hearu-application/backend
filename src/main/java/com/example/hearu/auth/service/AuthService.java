@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final RefreshTokenService refreshTokenService;
@@ -27,7 +28,6 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final CompanionService companionService;
 
-    @Transactional
     public AuthResponse registerOrLogin(
         ProviderType providerType,
         OauthRequest request
@@ -53,8 +53,7 @@ public class AuthService {
         );
     }
 
-    @Transactional
-    public User findOrCreateUserBy(ProviderType provider, String sub, String email) {
+    private User findOrCreateUserBy(ProviderType provider, String sub, String email) {
         return userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub)
                 .orElseGet(() -> {
                     Companion defaultCompanion = companionService.getDefaultOrThrow();
