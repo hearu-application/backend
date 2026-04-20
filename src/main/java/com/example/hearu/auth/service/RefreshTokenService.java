@@ -37,8 +37,7 @@ public class RefreshTokenService {
     @Transactional
     public void issueInitialToken(User user, String newRefreshToken) {
 
-        Claims claims = jwtProvider.parseClaims(newRefreshToken);
-        LocalDateTime expiresAt = jwtProvider.extractExpiration(claims);
+        LocalDateTime expiresAt = jwtProvider.getRefreshTokenExpiresAt();
 
         RefreshToken refreshToken = authRepository.findById(user.getUserId())
             .map(existing -> {
