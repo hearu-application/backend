@@ -85,6 +85,7 @@ public class RefreshTokenServiceTest {
             // given
             RefreshToken refreshToken = RefreshToken.create(USER_ID, "refresh_token", FIXED_EXPIRES_AT);
             given(authRepository.findById(USER_ID)).willReturn(Optional.of(refreshToken));
+            given(jwtProvider.getRefreshTokenExpiresAt()).willReturn(FIXED_EXPIRES_AT);
 
             // when
             refreshTokenService.issueInitialToken(user, tokenToIssue);
@@ -92,18 +93,14 @@ public class RefreshTokenServiceTest {
             // then
             assertThat(refreshToken.getToken()).isEqualTo(tokenToIssue);
             verify(authRepository).save(any(RefreshToken.class));
-            verify(jwtProvider, never()).parseClaims(any());
         }
 
         @Test
         @DisplayName("refresh token 미존재 시 신규 생성")
         void create_when_token_not_exists() {
             // given
-            Claims claims = mock(Claims.class);
-
             given(authRepository.findById(USER_ID)).willReturn(Optional.empty());
-            given(jwtProvider.parseClaims(tokenToIssue)).willReturn(claims);
-            given(jwtProvider.extractExpiration(claims)).willReturn(FIXED_EXPIRES_AT);
+            given(jwtProvider.getRefreshTokenExpiresAt()).willReturn(FIXED_EXPIRES_AT);
 
             // when
             refreshTokenService.issueInitialToken(user, tokenToIssue);
