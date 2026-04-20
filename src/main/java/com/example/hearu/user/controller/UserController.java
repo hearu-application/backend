@@ -74,23 +74,18 @@ public class UserController {
 
     @SecurityRequirement(name = "Authorization")
     @DeleteMapping
-    public ResponseEntity<ApiResponse<Void>> delete (
+    public ResponseEntity<Void> delete(
             @AuthenticationPrincipal Long userId
     ) {
         userService.delete(userId);
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "사용자 회원탈퇴 완료",
-                        null
-                )
-        );
+        return ResponseEntity.noContent().build();
     }
 
     @SecurityRequirement(name = "Authorization")
     @PatchMapping("/ai-settings")
     public ResponseEntity<ApiResponse<Void>> updateAiSettings(
             @AuthenticationPrincipal Long userId,
-            @RequestBody UpdateAiSettingsRequest request
+            @RequestBody @Valid UpdateAiSettingsRequest request
     ) {
         userService.updateAiSettings(userId, request);
         return ResponseEntity.ok(

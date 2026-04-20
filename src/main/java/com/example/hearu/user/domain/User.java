@@ -24,7 +24,8 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
 
-    private String nickName;
+    @Column(name = "nickname")
+    private String nickname;
 
     @Column(name = "email", nullable = false)
     private String email;
@@ -66,7 +67,7 @@ public class User extends BaseEntity {
     }
 
     public void updateNickname(String nickname) {
-        this.nickName = nickname;
+        this.nickname = nickname;
     }
 
     public void updatePassword(String password) {
@@ -81,9 +82,9 @@ public class User extends BaseEntity {
         this.toneType = toneType;
     }
 
-    public void validateUserNickNameExists() {
-        if (getNickName() == null) {
-            log.error("사용자의 닉네임이 존재하지 않습니다. userId={}", getUserId());
+    public void validateNicknameExists() {
+        if (getNickname() == null) {
+            log.warn("사용자의 닉네임이 존재하지 않습니다. userId={}", getUserId());
             throw new BusinessException(UserErrorCode.NICKNAME_REQUIRED);
         }
     }

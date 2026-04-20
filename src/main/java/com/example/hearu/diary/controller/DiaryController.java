@@ -38,13 +38,8 @@ public class DiaryController {
     ) {
 
         DiaryCreateResponse response = diaryService.createDiary(userId, request);
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "일기 작성이 완료되었습니다.",
-                        response,
-                        HttpStatus.CREATED
-                )
-        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("일기 작성이 완료되었습니다.", response));
     }
 
     @SecurityRequirement(name = "Authorization")
@@ -95,18 +90,13 @@ public class DiaryController {
 
     @SecurityRequirement(name = "Authorization")
     @DeleteMapping("/{diaryId}")
-    public ResponseEntity<ApiResponse<Void>> deleteDiary(
+    public ResponseEntity<Void> deleteDiary(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long diaryId
     ) {
 
         diaryService.deleteDiary(userId, diaryId);
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "일기 삭제가 완료되었습니다.",
-                        null
-                )
-        );
+        return ResponseEntity.noContent().build();
     }
 
     @SecurityRequirement(name = "Authorization")
@@ -117,13 +107,8 @@ public class DiaryController {
     ) {
         diaryService.requestAiResponse(userId, diaryId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "AI 응답 요청 접수 완료",
-                        null,
-                        HttpStatus.ACCEPTED
-                )
-        );
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success("AI 응답 요청 접수 완료", null));
     }
 
     @SecurityRequirement(name = "Authorization")

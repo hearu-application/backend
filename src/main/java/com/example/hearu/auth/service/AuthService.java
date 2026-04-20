@@ -49,7 +49,7 @@ public class AuthService {
         return new AuthResponse(
             accessToken,
             refreshToken,
-            user.getNickName()
+            user.getNickname()
         );
     }
 
