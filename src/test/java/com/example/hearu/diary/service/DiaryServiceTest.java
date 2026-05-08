@@ -23,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.Diary;
@@ -59,13 +58,10 @@ public class DiaryServiceTest {
 
     @BeforeEach
     void setUp() {
-        Companion companion = Mockito.mock(Companion.class);
-
         user = User.create(
             "example@naver.com",
             ProviderType.KAKAO,
-            "1234567890",
-            companion
+            "1234567890"
         );
         ReflectionTestUtils.setField(user, "userId", 1L);
 
@@ -337,7 +333,7 @@ public class DiaryServiceTest {
         @Test
         @DisplayName("권한이 없는 경우, 예외 처리")
         void forbidden_diary() {
-            User otherUser = User.create("other@naver.com", ProviderType.GOOGLE, "4444444444", mock(Companion.class));
+            User otherUser = User.create("other@naver.com", ProviderType.GOOGLE, "4444444444");
             given(userService.getUserOrThrow(2L)).willReturn(otherUser);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
 

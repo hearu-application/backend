@@ -1,7 +1,5 @@
 package com.example.hearu.auth.service;
 
-import com.example.hearu.ai.character.domain.Companion;
-import com.example.hearu.ai.character.service.CompanionService;
 import com.example.hearu.auth.domain.OauthProvider;
 import com.example.hearu.auth.domain.OauthProviderFactory;
 import com.example.hearu.auth.domain.ProviderType;
@@ -35,19 +33,16 @@ public class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock OauthProviderFactory oauthProviderFactory;
     @Mock JwtProvider jwtProvider;
-    @Mock CompanionService companionService;
     @Mock OauthProvider oauthProvider;
 
     @InjectMocks
     AuthService authService;
 
-    private Companion companion;
     private User user;
 
     @BeforeEach
     void setUp() {
-        companion = Companion.create("봉봉이", "설명", "페르소나", "행동규칙", "예시");
-        user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890", companion);
+        user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
     }
 
     @Nested
@@ -77,10 +72,9 @@ public class AuthServiceTest {
             ProviderType provider = ProviderType.KAKAO;
             String sub = "0987654321";
             String email = "example2@naver.com";
-            User newUser = User.create(email, provider, sub, companion);
+            User newUser = User.create(email, provider, sub);
             given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub))
                     .willReturn(Optional.empty());
-            given(companionService.getDefaultOrThrow()).willReturn(companion);
             given(userRepository.save(any(User.class))).willReturn(newUser);
 
             // when
@@ -90,7 +84,6 @@ public class AuthServiceTest {
             assertThat(createUser.getEmail()).isEqualTo(email);
             assertThat(createUser.getProvider()).isEqualTo(provider);
             assertThat(createUser.getProviderUserId()).isEqualTo(sub);
-            verify(companionService).getDefaultOrThrow();
             verify(userRepository).save(any(User.class));
         }
     }
@@ -113,13 +106,12 @@ public class AuthServiceTest {
         void register_new_user() {
             // given
             OauthUserInfo userInfo = new OauthUserInfo("9999999999", "newuser@naver.com");
-            User newUser = User.create(userInfo.email(), ProviderType.KAKAO, userInfo.sub(), companion);
+            User newUser = User.create(userInfo.email(), ProviderType.KAKAO, userInfo.sub());
             ReflectionTestUtils.setField(newUser, "userId", 1L);
 
             given(oauthProvider.getUserInfoFromOauthServer(request)).willReturn(userInfo);
             given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(ProviderType.KAKAO, userInfo.sub()))
                     .willReturn(Optional.empty());
-            given(companionService.getDefaultOrThrow()).willReturn(companion);
             given(userRepository.save(any(User.class))).willReturn(newUser);
             given(jwtProvider.createAccessToken(newUser.getUserId())).willReturn(accessToken);
             given(jwtProvider.createRefreshToken(newUser.getUserId())).willReturn(refreshToken);

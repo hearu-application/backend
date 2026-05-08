@@ -2,7 +2,6 @@ package com.example.hearu.user.domain;
 
 import java.util.UUID;
 
-import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.auth.domain.ProviderType;
@@ -37,10 +36,6 @@ public class User extends BaseEntity {
     @Column(name = "provider_user_id", nullable = false, unique = true)
     private String providerUserId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "companion_id", nullable = false)
-    private Companion companion;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "tone_type", nullable = false, length = 50)
     private ToneType toneType;
@@ -48,16 +43,15 @@ public class User extends BaseEntity {
     @Column(name = "password")
     private String password;
 
-    private User(String email, ProviderType provider, String providerUserId, Companion companion) {
+    private User(String email, ProviderType provider, String providerUserId) {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.toneType = ToneType.HONORIFIC;
-        this.companion = companion;
     }
 
-    public static User create(String email, ProviderType provider, String providerUserId, Companion companion) {
-        return new User(email, provider, providerUserId, companion);
+    public static User create(String email, ProviderType provider, String providerUserId) {
+        return new User(email, provider, providerUserId);
     }
 
     @Override
@@ -72,10 +66,6 @@ public class User extends BaseEntity {
 
     public void updatePassword(String password) {
         this.password = password;
-    }
-
-    public void updateCompanion(Companion companion) {
-        this.companion = companion;
     }
 
     public void updateToneType(ToneType toneType) {

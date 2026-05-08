@@ -1,7 +1,5 @@
 package com.example.hearu.user.service;
 
-import com.example.hearu.ai.character.domain.Companion;
-import com.example.hearu.ai.character.service.CompanionService;
 import com.example.hearu.auth.service.RefreshTokenService;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
 import com.example.hearu.user.dto.request.UpdateAiSettingsRequest;
@@ -26,8 +24,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
-    private final CompanionService companionService;
-
     @Transactional
     public NicknameUpdateResponse updateNickname(Long userId, NicknameUpdateRequest request) {
         User user = getUserOrThrow(userId);
@@ -56,7 +52,6 @@ public class UserService {
         return new ProfileResponse(
                 user.getNickname(),
                 user.getEmail(),
-                user.getCompanion().getId(),
                 user.getToneType(),
                 user.hasPassword()
         );
@@ -86,13 +81,7 @@ public class UserService {
         // 1. User 엔티티 조회
         User user = getUserOrThrow(userId);
 
-        // 2. CompanionId 값이 존재하면, 업데이트
-        if (request.companionId() != null) {
-            Companion companion = companionService.getOrThrow(request.companionId());
-            user.updateCompanion(companion);
-        }
-
-        // 3. ToneType 값이 존재하면, 업데이트
+        // 2. ToneType 값이 존재하면, 업데이트
         if (request.toneType() != null) {
             user.updateToneType(request.toneType());
         }

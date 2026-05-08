@@ -12,11 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.ai.response.domain.AiResponse;
 import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.domain.AiResponseStatusType;
@@ -38,21 +36,18 @@ public class AiResponseServiceTest {
     @InjectMocks
     AiResponseService aiResponseService;
 
-    private User user;
-    private Diary diary;
     private AiResponse aiResponse;
 
     @BeforeEach
     void setUp() {
-        user = User.create(
-            "example@naver.com",
-            ProviderType.KAKAO,
-            "1234567890",
-            Mockito.mock(Companion.class)
+        User user = User.create(
+                "example@naver.com",
+                ProviderType.KAKAO,
+                "1234567890"
         );
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        diary = Diary.create(user, "내용", EmotionType.JOY);
+        Diary diary = Diary.create(user, "내용", EmotionType.JOY);
         ReflectionTestUtils.setField(diary, "diaryId", 1L);
 
         aiResponse = AiResponse.create(diary);
@@ -77,7 +72,7 @@ public class AiResponseServiceTest {
         @Test
         @DisplayName("일기 소유자가 다른 경우, 예외 처리")
         void ai_response_forbidden() {
-            User otherUser = User.create("other@naver.com", ProviderType.KAKAO, "9999999999", Mockito.mock(Companion.class));
+            User otherUser = User.create("other@naver.com", ProviderType.KAKAO, "9999999999");
             ReflectionTestUtils.setField(otherUser, "userId", 2L);
             Diary otherDiary = Diary.create(otherUser, "다른 내용", EmotionType.JOY);
             AiResponse otherAiResponse = AiResponse.create(otherDiary);
