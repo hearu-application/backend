@@ -1,6 +1,6 @@
 package com.example.hearu.ai.response.infrastructure.client;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class NaverClovaClient {
 
-    private final RestClient aiRestClient ;
+    private final RestClient aiRestClient;
 
     @Value("${llm.completion-url}")
     private String completionUrl;
@@ -33,21 +33,30 @@ public class NaverClovaClient {
     @Value("${llm.api-key}")
     private String apiKey;
 
-    public static final double TEMPERATURE = 0.5;
-    public static final int TOP_K = 0;
-    public static final double TOP_P = 0.8;
-    public static final double REPEAT_PENALTY = 1.1;
-    public static final int MAX_TOKENS = 1000;
+    @Value("${llm.temperature:0.5}")
+    private double temperature;
 
-    public ClovaChatResponse getAiResponse(List<Message> messages)  {
+    @Value("${llm.top-k:0}")
+    private int topK;
 
-        Map<String, Object> body = new HashMap<>();
+    @Value("${llm.top-p:0.8}")
+    private double topP;
+
+    @Value("${llm.repeat-penalty:1.1}")
+    private double repeatPenalty;
+
+    @Value("${llm.max-tokens:1000}")
+    private int maxTokens;
+
+    public ClovaChatResponse getAiResponse(List<Message> messages) {
+
+        Map<String, Object> body = new LinkedHashMap<>();
         body.put("messages", messages);
-        body.put("temperature", TEMPERATURE);
-        body.put("topK", TOP_K);
-        body.put("topP", TOP_P);
-        body.put("repeatPenalty", REPEAT_PENALTY);
-        body.put("maxTokens", MAX_TOKENS);
+        body.put("temperature", temperature);
+        body.put("topK", topK);
+        body.put("topP", topP);
+        body.put("repeatPenalty", repeatPenalty);
+        body.put("maxTokens", maxTokens);
 
         return aiRestClient.post()
             .uri(completionUrl)

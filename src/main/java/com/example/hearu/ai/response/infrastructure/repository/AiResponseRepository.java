@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface AiResponseRepository extends JpaRepository<AiResponse, Long> {
-    Optional<AiResponse> findByDiary(Diary diary);
-
     Optional<AiResponse> findByDiaryAndDeletedAtIsNull(Diary diary);
+
+    Optional<AiResponse> findByDiary_DiaryIdAndDeletedAtIsNull(Long diaryId);
 }
