@@ -17,12 +17,14 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final OauthProviderFactory providerFactory;
     private final JwtProvider jwtProvider;
+  
     @Transactional
     public AuthResponse registerOrLogin(
         ProviderType providerType,
@@ -49,8 +51,7 @@ public class AuthService {
         );
     }
 
-    @Transactional
-    public User findOrCreateUserBy(ProviderType provider, String sub, String email) {
+    private User findOrCreateUserBy(ProviderType provider, String sub, String email) {
         return userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub)
                 .orElseGet(() -> userRepository.save(User.create(email, provider, sub)));
     }
