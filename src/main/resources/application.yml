@@ -36,6 +36,11 @@ jwt:
 llm:
   completion-url: ${LLM_COMPLETION_URL}
   api-key: ${LLM_API_KEY}
+  temperature: 0.5
+  top-k: 0
+  top-p: 0.8
+  repeat-penalty: 1.1
+  max-tokens: 1000
 
 slack:
   webhook:

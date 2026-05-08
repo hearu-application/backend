@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
+@Table(name = "ai_response")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AiResponse extends BaseEntity {
 
@@ -21,7 +22,7 @@ public class AiResponse extends BaseEntity {
     private Diary diary;
 
     @Column(name = "content", columnDefinition = "TEXT")
-    private String response;
+    private String content;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ai_response_status_type", nullable = false)
@@ -36,12 +37,15 @@ public class AiResponse extends BaseEntity {
         return new AiResponse(diary);
     }
 
-    public void completeResponse(String response) {
+    public void completeResponse(String content) {
         this.aiResponseStatusType = AiResponseStatusType.COMPLETED;
-        this.response = response;
+        this.content = content;
     }
 
     public void failResponse() {
+        if (this.aiResponseStatusType == AiResponseStatusType.COMPLETED) {
+            return;
+        }
         this.aiResponseStatusType = AiResponseStatusType.FAILED;
     }
 }

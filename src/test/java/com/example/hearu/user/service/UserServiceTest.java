@@ -14,8 +14,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.hearu.ai.character.domain.Companion;
-import com.example.hearu.ai.character.service.CompanionService;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.auth.service.RefreshTokenService;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -36,9 +34,6 @@ public class UserServiceTest {
     @Mock
     RefreshTokenService refreshTokenService;
 
-    @Mock
-    CompanionService companionService;
-
     @InjectMocks
     private UserService userService;
 
@@ -46,19 +41,10 @@ public class UserServiceTest {
 
     @BeforeEach
     public void setUp() {
-        Companion companion = Companion.create(
-            "봉봉이",
-            "설명",
-            "페르소나",
-            "행동규칙",
-            "예시"
-        );
-
         user = User.create(
             "example@naver.com",
             ProviderType.KAKAO,
-            "1234567890",
-            companion
+            "1234567890"
         );
     }
 
@@ -154,7 +140,6 @@ public class UserServiceTest {
             assertThat(profile.nickname()).isEqualTo(user.getNickname());
             assertThat(profile.email()).isEqualTo(user.getEmail());
             assertThat(profile.toneType()).isEqualTo(user.getToneType());
-            assertThat(profile.companionId()).isEqualTo(user.getCompanion().getId());
             assertThat(profile.hasPassword()).isFalse();
         }
     }
@@ -229,7 +214,7 @@ public class UserServiceTest {
         void user_not_found() {
             // given
             given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
-            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(1L, ToneType.INFORMAL);
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(ToneType.INFORMAL);
 
             // when & then
             assertThatThrownBy(() -> userService.updateAiSettings(1L, request))
@@ -238,35 +223,26 @@ public class UserServiceTest {
         }
 
         @Test
-        @DisplayName("companionId와 toneType 모두 값이 있는 경우 - 두 필드 모두 업데이트")
-        void update_ai_settings_both_fields_present() {
+        @DisplayName("toneType이 있는 경우 업데이트")
+        void update_ai_settings_tone_type_present() {
             // given
             given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-            Companion companion = Companion.create(
-                "빙빙이",
-                "설명",
-                "페르소나",
-                "행동규칙",
-                "예시"
-            );
-            given(companionService.getOrThrow(2L)).willReturn(companion);
-            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(2L, ToneType.INFORMAL);
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(ToneType.INFORMAL);
 
             // when
             userService.updateAiSettings(1L, request);
 
             // then
             assertThat(user.getToneType()).isEqualTo(ToneType.INFORMAL);
-            assertThat(user.getCompanion()).isSameAs(companion);
         }
 
         @Test
-        @DisplayName("companionId와 toneType 모두 null인 경우 - 기존 설정 유지")
-        void update_ai_settings_both_fields_null() {
+        @DisplayName("toneType이 null인 경우 기존 설정 유지")
+        void update_ai_settings_tone_type_null() {
             // given
             given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
             ToneType original = user.getToneType();
-            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(null, null);
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(null);
 
             // when
             userService.updateAiSettings(1L, request);

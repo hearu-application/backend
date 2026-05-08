@@ -18,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.auth.domain.entity.RefreshToken;
 import com.example.hearu.auth.domain.error.AuthErrorCode;
@@ -55,7 +54,7 @@ public class RefreshTokenServiceTest {
     RefreshTokenService refreshTokenService;
 
     private User createUserWithId() {
-        User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890", mock(Companion.class));
+        User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
         ReflectionTestUtils.setField(user, "userId", RefreshTokenServiceTest.USER_ID);
         return user;
     }

@@ -5,8 +5,6 @@ import com.example.hearu.user.infrastructure.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.hearu.ai.character.domain.Companion;
-import com.example.hearu.ai.character.service.CompanionService;
 import com.example.hearu.auth.domain.OauthProvider;
 import com.example.hearu.common.security.jwt.JwtProvider;
 import com.example.hearu.auth.domain.OauthProviderFactory;
@@ -26,8 +24,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final OauthProviderFactory providerFactory;
     private final JwtProvider jwtProvider;
-    private final CompanionService companionService;
-
+  
+    @Transactional
     public AuthResponse registerOrLogin(
         ProviderType providerType,
         OauthRequest request
@@ -55,9 +53,6 @@ public class AuthService {
 
     private User findOrCreateUserBy(ProviderType provider, String sub, String email) {
         return userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub)
-                .orElseGet(() -> {
-                    Companion defaultCompanion = companionService.getDefaultOrThrow();
-                    return userRepository.save(User.create(email, provider, sub, defaultCompanion));
-                });
+                .orElseGet(() -> userRepository.save(User.create(email, provider, sub)));
     }
 }

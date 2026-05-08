@@ -1,7 +1,5 @@
 package com.example.hearu.auth.service;
 
-import com.example.hearu.ai.character.domain.Companion;
-import com.example.hearu.ai.character.service.CompanionService;
 import com.example.hearu.auth.domain.OauthProvider;
 import com.example.hearu.auth.domain.OauthProviderFactory;
 import com.example.hearu.auth.domain.ProviderType;
@@ -35,19 +33,59 @@ public class AuthServiceTest {
     @Mock UserRepository userRepository;
     @Mock OauthProviderFactory oauthProviderFactory;
     @Mock JwtProvider jwtProvider;
-    @Mock CompanionService companionService;
     @Mock OauthProvider oauthProvider;
 
     @InjectMocks
     AuthService authService;
 
-    private Companion companion;
     private User user;
 
     @BeforeEach
     void setUp() {
-        companion = Companion.create("봉봉이", "설명", "페르소나", "행동규칙", "예시");
-        user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890", companion);
+        user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
+    }
+
+    @Nested
+    @DisplayName("사용자 찾으면 반환, 없으면 생성")
+    class FindOrCreateUserBy {
+
+        @Test
+        @DisplayName("기존 사용자 조회 성공")
+        void user_found() {
+            // given
+            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(user.getProvider(), user.getProviderUserId()))
+                    .willReturn(Optional.of(user));
+
+            // when
+            User findUser = authService.findOrCreateUserBy(user.getProvider(), user.getProviderUserId(), user.getEmail());
+
+            // then
+            assertThat(findUser.getProviderUserId()).isEqualTo(user.getProviderUserId());
+            assertThat(findUser.getProvider()).isEqualTo(user.getProvider());
+            assertThat(findUser.getEmail()).isEqualTo(user.getEmail());
+        }
+
+        @Test
+        @DisplayName("사용자 조회 시 없으면 유저 생성")
+        void user_not_found_create_user() {
+            // given
+            ProviderType provider = ProviderType.KAKAO;
+            String sub = "0987654321";
+            String email = "example2@naver.com";
+            User newUser = User.create(email, provider, sub);
+            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub))
+                    .willReturn(Optional.empty());
+            given(userRepository.save(any(User.class))).willReturn(newUser);
+
+            // when
+            User createUser = authService.findOrCreateUserBy(provider, sub, email);
+
+            // then
+            assertThat(createUser.getEmail()).isEqualTo(email);
+            assertThat(createUser.getProvider()).isEqualTo(provider);
+            assertThat(createUser.getProviderUserId()).isEqualTo(sub);
+            verify(userRepository).save(any(User.class));
+        }
     }
 
     @Nested
@@ -68,13 +106,12 @@ public class AuthServiceTest {
         void register_new_user() {
             // given
             OauthUserInfo userInfo = new OauthUserInfo("9999999999", "newuser@naver.com");
-            User newUser = User.create(userInfo.email(), ProviderType.KAKAO, userInfo.sub(), companion);
+            User newUser = User.create(userInfo.email(), ProviderType.KAKAO, userInfo.sub());
             ReflectionTestUtils.setField(newUser, "userId", 1L);
 
             given(oauthProvider.getUserInfoFromOauthServer(request)).willReturn(userInfo);
             given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(ProviderType.KAKAO, userInfo.sub()))
                     .willReturn(Optional.empty());
-            given(companionService.getDefaultOrThrow()).willReturn(companion);
             given(userRepository.save(any(User.class))).willReturn(newUser);
             given(jwtProvider.createAccessToken(newUser.getUserId())).willReturn(accessToken);
             given(jwtProvider.createRefreshToken(newUser.getUserId())).willReturn(refreshToken);
