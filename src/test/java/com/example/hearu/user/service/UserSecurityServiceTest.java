@@ -13,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.example.hearu.ai.character.domain.Companion;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.user.domain.User;
@@ -34,19 +33,10 @@ public class UserSecurityServiceTest {
 
     @BeforeEach
     void setUp() {
-        Companion companion = Companion.create(
-            "봉봉이",
-            "설명",
-            "페르소나",
-            "행동규칙",
-            "예시"
-        );
-
         user = User.create(
             "example@naver.com",
             ProviderType.KAKAO,
-            "1234567890",
-            companion
+            "1234567890"
         );
     }
 
