@@ -40,7 +40,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build & Test
-        run: ./gradlew build
+        run: ./gradlew clean build
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
