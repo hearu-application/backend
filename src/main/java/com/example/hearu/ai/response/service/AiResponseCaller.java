@@ -41,7 +41,7 @@ public class AiResponseCaller {
     public void call(DiaryAiResponseRequestedEvent event) {
         try {
             // 1. 프롬프트 생성
-            String systemPrompt = promptBuilder.systemPromptBuild();
+            String systemPrompt = promptBuilder.systemPromptBuild(event.nickname());
             String userPrompt = promptBuilder.userPromptBuild(event.content(), event.emotionType());
 
             // 2. LLM 전달 메시지 구성
