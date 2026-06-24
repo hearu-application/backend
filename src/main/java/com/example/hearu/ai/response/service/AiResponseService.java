@@ -27,6 +27,13 @@ public class AiResponseService {
         return new AiResponseResponse(aiResponse.getContent(), aiResponse.getAiResponseStatusType());
     }
 
+    @Transactional(readOnly = true)
+    public AiResponse getOwnedAiResponse(Long userId, Long diaryId) {
+        AiResponse aiResponse = getAiResponseOrThrow(diaryId);
+        aiResponse.getDiary().validateOwner(userId);
+        return aiResponse;
+    }
+
     public void markCompletedAndSaveResponse(Long diaryId, String content) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
         aiResponse.completeResponse(content);
