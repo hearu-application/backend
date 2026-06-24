@@ -49,7 +49,7 @@ public class AiFeedbackServiceTest {
         User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        Diary diary = Diary.create(user, "내용", EmotionType.JOY, "test-key-001");
+        Diary diary = Diary.create(user, "내용", EmotionType.JOY);
         ReflectionTestUtils.setField(diary, "diaryId", 1L);
 
         aiResponse = AiResponse.create(diary);
