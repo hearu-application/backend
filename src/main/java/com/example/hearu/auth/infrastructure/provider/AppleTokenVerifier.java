@@ -7,35 +7,54 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
 @Component
 public class AppleTokenVerifier {
 
+    private static final String APPLE_ISSUER = "https://appleid.apple.com";
+    private static final String APPLE_JWKS_URI = APPLE_ISSUER + "/auth/keys";
+
+    // JWKS 조회가 무한 대기하면 요청 스레드가 묶여 서비스 전체로 장애가 번진다.
+    // TLS 핸드셰이크는 read timeout에 걸리므로 connect보다 여유를 둔다.
+    private static final Duration JWKS_CONNECT_TIMEOUT = Duration.ofSeconds(3);
+    private static final Duration JWKS_READ_TIMEOUT = Duration.ofSeconds(5);
+
     // iOS Bundle ID, Android Service ID 등 복수 audience 허용 (콤마 구분)
     @Value("${oauth.apple.client-ids}")
     private List<String> appleClientIds;
 
-    private JwtDecoder jwtDecoder;
+    private NimbusJwtDecoder jwtDecoder;
 
     @PostConstruct
     public void init() {
         this.jwtDecoder = NimbusJwtDecoder
-                .withJwkSetUri("https://appleid.apple.com/auth/keys")
+                .withJwkSetUri(APPLE_JWKS_URI)
+                .restOperations(createJwksRestTemplate())
                 .build();
 
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
-                new JwtIssuerValidator("https://appleid.apple.com"),
+                new JwtIssuerValidator(APPLE_ISSUER),
                 // 등록된 client-id 중 하나라도 token의 aud에 포함되면 통과 (iOS/Android 동시 지원)
                 new JwtClaimValidator<List<String>>("aud",
                         aud -> aud != null && aud.stream().anyMatch(appleClientIds::contains))
         );
-        ((NimbusJwtDecoder) this.jwtDecoder).setJwtValidator(validator);
+        this.jwtDecoder.setJwtValidator(validator);
+    }
+
+    private RestTemplate createJwksRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(JWKS_CONNECT_TIMEOUT);
+        factory.setReadTimeout(JWKS_READ_TIMEOUT);
+        return new RestTemplate(factory);
     }
 
     public Payload verifyToken(String idToken) {
