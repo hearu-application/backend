@@ -8,9 +8,7 @@ import com.example.hearu.auth.dto.request.OauthRequest;
 import com.example.hearu.auth.dto.response.OauthUserInfo;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AppleProvider implements OauthProvider {
