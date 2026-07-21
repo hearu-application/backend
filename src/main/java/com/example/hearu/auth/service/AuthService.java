@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.hearu.auth.domain.OauthProvider;
+import com.example.hearu.auth.domain.error.AuthErrorCode;
 import com.example.hearu.common.security.jwt.JwtProvider;
+import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.auth.domain.OauthProviderFactory;
 import com.example.hearu.auth.dto.request.OauthRequest;
 import com.example.hearu.auth.dto.response.AuthResponse;
@@ -14,7 +16,9 @@ import com.example.hearu.auth.dto.response.OauthUserInfo;
 import com.example.hearu.user.domain.User;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -53,6 +57,13 @@ public class AuthService {
 
     private User findOrCreateUserBy(ProviderType provider, String sub, String email) {
         return userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(provider, sub)
-                .orElseGet(() -> userRepository.save(User.create(email, provider, sub)));
+                .orElseGet(() -> {
+                    // 신규 가입 시에만 email이 필수 (Apple은 최초 인증 시에만 email claim을 내려준다)
+                    if (email == null) {
+                        log.warn("신규 가입에 필요한 email이 없습니다. provider={}", provider);
+                        throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
+                    }
+                    return userRepository.save(User.create(email, provider, sub));
+                });
     }
 }

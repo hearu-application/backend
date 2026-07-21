@@ -25,6 +25,8 @@ oauth:
     client-id: ${KAKAO_REST_API_KEY}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
+  apple:
+    client-ids: ${APPLE_CLIENT_IDS}
 
 jwt:
   access-token:
