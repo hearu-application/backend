@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -50,10 +49,10 @@ public class DiaryService {
 
         // 3. 하루 일기 제한 검사(정책)
         LocalDate today = LocalDate.now();
-        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             userId,
             today.atStartOfDay(),
-            today.atTime(LocalTime.MAX)
+            today.plusDays(1).atStartOfDay()
         );
         log.debug("하루 일기 제한 검사. userId={}, 오늘 작성 수={}, 제한={}", userId, count, DIARY_DAILY_LIMIT);
         if (count >= DIARY_DAILY_LIMIT) {
@@ -116,10 +115,11 @@ public class DiaryService {
         // 1. 오늘 날짜 확인
         LocalDate today = LocalDate.now();
         LocalDateTime start = today.atStartOfDay();
-        LocalDateTime end = today.atTime(LocalTime.MAX);
+        LocalDateTime end = today.plusDays(1).atStartOfDay();
 
         // 2. 오늘 일기 작성 횟수 조회
-        int todayDiaryCount = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(userId, start, end);
+        int todayDiaryCount = diaryRepository
+                .countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(userId, start, end);
         log.debug("오늘 일기 작성 횟수 조회. userId={}, date={}, count={}", userId, today, todayDiaryCount);
 
         return new DiaryTodayCountResponse(todayDiaryCount);
@@ -137,11 +137,12 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 3. DB에서 해당 월의 일기 목록 조회
-        List<Diary> diaries = diaryRepository.findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(
-                user,
-                start,
-                end
-        );
+        List<Diary> diaries = diaryRepository
+                .findByUserAndDeletedAtIsNullAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                        user,
+                        start,
+                        end
+                );
 
         log.debug("캘린더 일기 목록 조회. userId={}, yearMonth={}, 조회 건수={}",
                 userId, yearMonth, diaries.size());
