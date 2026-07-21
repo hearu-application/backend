@@ -16,28 +16,38 @@ import java.util.List;
 @Component
 public class KakaoTokenVerifier {
 
+    private static final String KAKAO_ISSUER = "https://kauth.kakao.com";
+    private static final String KAKAO_JWKS_URI = KAKAO_ISSUER + "/.well-known/jwks.json";
+
     @Value("${oauth.kakao.client-id}")
     private String kakaoClientId;
 
-    private JwtDecoder jwtDecoder;
+    private NimbusJwtDecoder jwtDecoder;
 
     @PostConstruct
     public void init() {
         this.jwtDecoder = NimbusJwtDecoder
-                .withJwkSetUri("https://kauth.kakao.com/.well-known/jwks.json")
+                .withJwkSetUri(KAKAO_JWKS_URI)
+                .restOperations(JwksRestTemplateFactory.create())
                 .build();
 
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
-                new JwtIssuerValidator("https://kauth.kakao.com"),
+                new JwtIssuerValidator(KAKAO_ISSUER),
                 new JwtClaimValidator<List<String>>("aud", aud -> aud != null && aud.contains(kakaoClientId))
         );
-        ((NimbusJwtDecoder) this.jwtDecoder).setJwtValidator(validator);
+        this.jwtDecoder.setJwtValidator(validator);
     }
 
     public Payload verifyToken(String idToken) {
-        // 1. 서명 검증 (자동으로 JWKS에서 공개키 가져와서 검증)
-        Jwt jwt = jwtDecoder.decode(idToken);
+        // 1. 서명 검증 (자동으로 JWKS에서 공개키 가져와서 검증) + iss/aud/exp 검증
+        Jwt jwt;
+        try {
+            jwt = jwtDecoder.decode(idToken);
+        } catch (Exception e) {
+            log.warn("Kakao ID Token 검증 실패. message={}", e.getMessage(), e);
+            throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
+        }
 
         String sub = jwt.getSubject();
         String email = jwt.getClaimAsString("email");
