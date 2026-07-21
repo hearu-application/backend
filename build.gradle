@@ -50,10 +50,6 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
-	// ==================== OAuth Client ====================
-	// Google OAuth 토큰 검증용 클라이언트
-	implementation "com.google.api-client:google-api-client:2.7.2"
-
 	// ==================== Database ====================
 	// MySQL JDBC 드라이버
 	runtimeOnly 'com.mysql:mysql-connector-j'

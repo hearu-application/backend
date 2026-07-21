@@ -30,13 +30,15 @@ public class KakaoTokenVerifier {
                 .withJwkSetUri(KAKAO_JWKS_URI)
                 .restOperations(JwksRestTemplateFactory.create())
                 .build();
+        this.jwtDecoder.setJwtValidator(createValidator());
+    }
 
-        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+    OAuth2TokenValidator<Jwt> createValidator() {
+        return new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
                 new JwtIssuerValidator(KAKAO_ISSUER),
                 new JwtClaimValidator<List<String>>("aud", aud -> aud != null && aud.contains(kakaoClientId))
         );
-        this.jwtDecoder.setJwtValidator(validator);
     }
 
     public Payload verifyToken(String idToken) {

@@ -31,15 +31,17 @@ public class AppleTokenVerifier {
                 .withJwkSetUri(APPLE_JWKS_URI)
                 .restOperations(JwksRestTemplateFactory.create())
                 .build();
+        this.jwtDecoder.setJwtValidator(createValidator());
+    }
 
-        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+    OAuth2TokenValidator<Jwt> createValidator() {
+        return new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
                 new JwtIssuerValidator(APPLE_ISSUER),
                 // 등록된 client-id 중 하나라도 token의 aud에 포함되면 통과 (iOS/Android 동시 지원)
                 new JwtClaimValidator<List<String>>("aud",
                         aud -> aud != null && aud.stream().anyMatch(appleClientIds::contains))
         );
-        this.jwtDecoder.setJwtValidator(validator);
     }
 
     public Payload verifyToken(String idToken) {

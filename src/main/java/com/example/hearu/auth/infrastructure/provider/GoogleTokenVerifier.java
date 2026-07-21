@@ -2,51 +2,80 @@ package com.example.hearu.auth.infrastructure.provider;
 
 import com.example.hearu.auth.domain.error.AuthErrorCode;
 import com.example.hearu.common.util.exception.BusinessException;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 @Component
 public class GoogleTokenVerifier {
 
-    @Value("${oauth.google.client-id}")
-    private String CLIENT_ID;
+    private static final String GOOGLE_JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs";
 
-    private GoogleIdTokenVerifier verifier;
+    // Google은 iss를 scheme 유무 두 형태로 발급하므로 모두 허용한다.
+    private static final List<String> GOOGLE_ISSUERS = List.of(
+            "https://accounts.google.com",
+            "accounts.google.com"
+    );
+
+    // iOS/Android 모두 serverClientId(웹 클라이언트 ID)로 토큰을 요청하므로 aud는 하나로 통일된다.
+    @Value("${oauth.google.client-id}")
+    private String googleClientId;
+
+    private NimbusJwtDecoder jwtDecoder;
 
     @PostConstruct
     public void init() {
-        this.verifier = new GoogleIdTokenVerifier.Builder(
-                new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(CLIENT_ID))
+        this.jwtDecoder = NimbusJwtDecoder
+                .withJwkSetUri(GOOGLE_JWKS_URI)
+                .restOperations(JwksRestTemplateFactory.create())
                 .build();
+        this.jwtDecoder.setJwtValidator(createValidator());
+    }
+
+    OAuth2TokenValidator<Jwt> createValidator() {
+        return new DelegatingOAuth2TokenValidator<>(
+                new JwtTimestampValidator(),
+                // 현재 Spring Security는 iss를 String으로 두지만, 버전에 따라 URL로 변환될 수
+                // 있어 타입에 의존하지 않도록 문자열로 비교한다.
+                new JwtClaimValidator<Object>("iss",
+                        iss -> iss != null && GOOGLE_ISSUERS.contains(iss.toString())),
+                new JwtClaimValidator<List<String>>("aud",
+                        aud -> aud != null && aud.contains(googleClientId))
+        );
     }
 
     public Payload verifyToken(String idToken) {
-        GoogleIdToken verifiedIdToken;
+        // 1. 서명 검증 (자동으로 JWKS에서 공개키 가져와서 검증) + iss/aud/exp 검증
+        Jwt jwt;
         try {
-            // 1. 토큰 검증 (서명 + aud + exp + iss 모두 검증)
-            verifiedIdToken = verifier.verify(idToken);
+            jwt = jwtDecoder.decode(idToken);
         } catch (Exception e) {
             log.warn("Google ID Token 검증 실패. message={}", e.getMessage(), e);
             throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
         }
 
-        if (verifiedIdToken == null) {
-            log.warn("Google ID Token이 유효하지 않습니다.");
-            throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
+        String sub = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+
+        // 2. 필수 claim 검증 (email은 신규 가입 시에만 필요하므로 AuthService에서 검증)
+        if (sub == null) {
+            log.warn("Google ID Token에 sub claim이 없습니다.");
+            throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
         }
 
-        // 2. Payload에서 사용자 정보 추출
-        return verifiedIdToken.getPayload();
+        return new Payload(sub, email);
     }
+
+    public record Payload(
+            String sub,
+            String email
+    ) {}
+
 }

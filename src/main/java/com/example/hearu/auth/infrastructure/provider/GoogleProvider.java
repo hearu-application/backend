@@ -1,7 +1,6 @@
 package com.example.hearu.auth.infrastructure.provider;
 
 import com.example.hearu.auth.domain.OauthProvider;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import org.springframework.stereotype.Component;
 
 import com.example.hearu.auth.domain.ProviderType;
@@ -24,10 +23,10 @@ public class GoogleProvider implements OauthProvider {
     @Override
     public OauthUserInfo getUserInfoFromOauthServer(OauthRequest request) {
 
-        GoogleIdToken.Payload payload = googleTokenVerifier.verifyToken(request.idToken());
+        GoogleTokenVerifier.Payload payload = googleTokenVerifier.verifyToken(request.idToken());
 
-        String sub = payload.getSubject();
-        String email = payload.getEmail();
+        String sub = payload.sub();
+        String email = payload.email();
 
         return new OauthUserInfo(
             sub,
