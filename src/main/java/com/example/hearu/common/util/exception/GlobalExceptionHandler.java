@@ -82,6 +82,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException e) {
 
+        // 예외를 던지는 시점에 이미 WARN으로 상세 컨텍스트를 남기므로 여기서는 중복 경고를 피하고,
+        // 최종적으로 어떤 응답으로 변환되었는지만 DEBUG로 남긴다.
+        log.debug("BusinessException 처리. errorCode={}, status={}, message={}",
+                e.getErrorCode(),
+                e.getErrorCode().getHttpStatus().value(),
+                e.getMessage());
+
         ErrorResponse response = ErrorResponse.builder()
                 .status(e.getErrorCode().getHttpStatus().value())
                 .code(e.getErrorCode().getHttpStatus().name())

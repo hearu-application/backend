@@ -21,6 +21,8 @@ public class UserSecurityService {
 
     @Transactional
     public void enableAppLock(Long userId, String password) {
+        log.debug("앱 잠금 설정 시작. userId={}", userId);
+
         // 1. User 조회 및 Throw
         User user = userService.getUserOrThrow(userId);
 
@@ -37,6 +39,8 @@ public class UserSecurityService {
 
     @Transactional
     public void disableAppLock(Long userId) {
+        log.debug("앱 잠금 해제 시작. userId={}", userId);
+
         // 1. User 조회 및 Throw
         User user = userService.getUserOrThrow(userId);
 
@@ -53,6 +57,8 @@ public class UserSecurityService {
 
     @Transactional
     public void changeAppLockPassword(Long userId, String currentPassword, String newPassword) {
+        log.debug("앱 잠금 비밀번호 변경 시작. userId={}", userId);
+
         // 1. User 엔티티 조회
         User user = userService.getUserOrThrow(userId);
 
@@ -95,5 +101,7 @@ public class UserSecurityService {
             log.warn("앱 잠금 비밀번호 인증 실패. userId={}", userId);
             throw new BusinessException(UserSecurityErrorCode.INVALID_APP_PASSWORD);
         }
+
+        log.debug("앱 잠금 비밀번호 인증 성공. userId={}", userId);
     }
 }

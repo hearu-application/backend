@@ -38,8 +38,9 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             }
 
             // 1-2) 인증 정보 없이 보호 자원 접근
+            //      봇/크롤러 트래픽으로 상시 발생하는 정상 흐름이므로 DEBUG가 적절하다.
             if (!hasAuthHeader) {
-                log.info(
+                log.debug(
                     "[AUTH BLOCKED] 인증 정보 없는 요청 차단 - method={}, uri={}, remoteAddr={}",
                     request.getMethod(),
                     request.getRequestURI(),
@@ -76,7 +77,8 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             log.warn("서버에서 지원하지 않은 방식으로 서명된 JWT 토큰입니다.: {}", cause.getMessage());
             return SecurityServletErrorCode.UNSUPPORTED_JWT;
         } else {
-            log.warn("Access Token 인증 과정 중 알 수 없는 서버 오류: {}", cause.getMessage(), cause);
+            // 500(INTERNAL_SERVER_ERROR)을 반환하는 경로이므로 ERROR가 맞다.
+            log.error("Access Token 인증 과정 중 알 수 없는 서버 오류: {}", cause.getMessage(), cause);
             return SecurityServletErrorCode.INTERNAL_SERVER_ERROR;
         }
     }

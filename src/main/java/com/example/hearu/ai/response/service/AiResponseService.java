@@ -7,6 +7,7 @@ import com.example.hearu.ai.response.infrastructure.repository.AiResponseReposit
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
 
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,11 @@ public class AiResponseService {
     public AiResponseResponse getAiResponse(Long userId, Long diaryId) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
         aiResponse.getDiary().validateOwner(userId);
+
+        // 응답이 아직 PENDING인지 FAILED인지가 클라이언트 폴링 디버깅의 핵심 정보다.
+        log.debug("AI 응답 조회. diaryId={}, status={}, content={}",
+            diaryId, aiResponse.getAiResponseStatusType(), LogMasker.textLength(aiResponse.getContent()));
+
         return new AiResponseResponse(aiResponse.getContent(), aiResponse.getAiResponseStatusType());
     }
 
@@ -34,6 +40,7 @@ public class AiResponseService {
         return aiResponse;
     }
 
+    // 호출부(AiResponseCaller)가 [AI][Complete] / 실패 사유를 이미 기록하므로 여기서는 로깅하지 않는다.
     public void markCompletedAndSaveResponse(Long diaryId, String content) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
         aiResponse.completeResponse(content);

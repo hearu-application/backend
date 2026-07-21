@@ -58,7 +58,13 @@ public class NaverClovaClient {
         body.put("repeatPenalty", repeatPenalty);
         body.put("maxTokens", maxTokens);
 
-        return aiRestClient.post()
+        // 프롬프트 본문에는 일기 내용이 포함되므로 메시지 수/길이만 남긴다.
+        log.debug("[AI][HttpCall] 요청 시작. url={}, messageCount={}, temperature={}, maxTokens={}",
+            completionUrl, messages.size(), temperature, maxTokens);
+
+        long startedAt = System.currentTimeMillis();
+
+        ClovaChatResponse response = aiRestClient.post()
             .uri(completionUrl)
             .header("Authorization", "Bearer " + apiKey)
             .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -81,5 +87,9 @@ public class NaverClovaClient {
                 throw new HttpServerErrorException(res.getStatusCode());
             })
             .body(ClovaChatResponse.class);
+
+        log.debug("[AI][HttpCall] 요청 완료. elapsed={}ms", System.currentTimeMillis() - startedAt);
+
+        return response;
     }
 }

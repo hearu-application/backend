@@ -1,12 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{requestId:-none}] [user:%X{userId:-anon}] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-    </root>
+    <!--
+      로그 "레벨"은 application-{profile}.yml의 logging.level에서 관리한다(단일 출처).
+      이 파일은 프로필별 "출력 형태(appender/pattern)"만 담당한다.
+    -->
+
+    <!--
+      Spring Boot의 기본 conversion word(%clr, %wEx 등)를 등록한다.
+      이 include가 없으면 %clr/%wEx 사용 시 logback 초기화가 실패해
+      애플리케이션 자체가 기동되지 않는다.
+    -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- MDC: requestId(요청 추적), userId(JwtFilter에서 주입) -->
+    <property name="MDC_PATTERN" value="[%X{requestId:-none}] [user:%X{userId:-anon}]"/>
+
+    <!-- local/dev: 사람이 콘솔에서 읽는 용도. 색상 + 짧은 로거명 + 스레드명(비동기 AI 호출 추적용) -->
+    <springProfile name="local,dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>
+                    %clr(%d{HH:mm:ss.SSS}){faint} %clr(${MDC_PATTERN}){magenta} %clr(%-5level) %clr([%thread]){faint} %clr(%logger{36}){cyan} - %msg%n%wEx
+                </pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!--
+      prod: 로그 수집기(stdout 파싱)가 읽는 용도.
+      ANSI 색상 코드를 넣지 않고, 날짜를 전체 표기하며 로거명을 자르지 않는다.
+    -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} ${MDC_PATTERN} %-5level %logger - %msg%n%wEx</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- 프로필 미지정(테스트 등) 기본값 -->
+    <springProfile name="!local &amp; !dev &amp; !prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} ${MDC_PATTERN} %-5level %logger{36} - %msg%n%wEx</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
 </configuration>

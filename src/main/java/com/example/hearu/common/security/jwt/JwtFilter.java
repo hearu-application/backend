@@ -37,7 +37,9 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = jwtProvider.resolveToken(request);
 
             // 토큰 없으면 익명으로 진행
-            if (token != null) {
+            if (token == null) {
+                log.debug("[JWT] Authorization 토큰 없음. 익명으로 진행. uri={}", request.getRequestURI());
+            } else {
 
                 Claims claims = jwtProvider.parseClaims(token);
 
@@ -47,10 +49,17 @@ public class JwtFilter extends OncePerRequestFilter {
                             jwtProvider.createAuthentication(userId)
                     );
                     MDC.put("userId", userId.toString());
+                    log.debug("[JWT] 인증 성공. userId={}, exp={}", userId, claims.getExpiration());
+                } else {
+                    // access token이 아닌 토큰(예: refresh token)으로 API를 호출한 경우.
+                    // 인증 없이 진행되어 이후 401로 처리된다.
+                    log.debug("[JWT] Access Token이 아니므로 인증하지 않음. uri={}", request.getRequestURI());
                 }
             }
 
         } catch (ExpiredJwtException | MalformedJwtException | UnsupportedJwtException | SignatureException e) {
+            log.debug("[JWT] 토큰 검증 실패. reason={}, message={}",
+                    e.getClass().getSimpleName(), e.getMessage());
             throw new BadCredentialsException("Invalid JWT", e);
         } catch (Exception e) {
             // 👉 정말 예상 못 한 오류

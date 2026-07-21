@@ -1,6 +1,7 @@
 package com.example.hearu.auth.infrastructure.provider;
 
 import com.example.hearu.auth.domain.error.AuthErrorCode;
+import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -52,12 +53,17 @@ public class GoogleTokenVerifier {
     }
 
     public Payload verifyToken(String idToken) {
+        log.debug("Google ID Token 검증 시작. idToken={}", LogMasker.token(idToken));
+
         // 1. 서명 검증 (자동으로 JWKS에서 공개키 가져와서 검증) + iss/aud/exp 검증
         Jwt jwt;
         try {
             jwt = jwtDecoder.decode(idToken);
         } catch (Exception e) {
-            log.warn("Google ID Token 검증 실패. message={}", e.getMessage(), e);
+            // 잘못된 토큰은 정상적으로 발생하는 케이스이므로 WARN에는 메시지만 남기고,
+            // 전체 스택트레이스는 디버깅이 필요한 dev/local(DEBUG)에서만 확인한다.
+            log.warn("Google ID Token 검증 실패. message={}", e.getMessage());
+            log.debug("Google ID Token 검증 실패 상세", e);
             throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
         }
 
@@ -69,6 +75,9 @@ public class GoogleTokenVerifier {
             log.warn("Google ID Token에 sub claim이 없습니다.");
             throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
         }
+
+        log.debug("Google ID Token 검증 성공. sub={}, email={}, exp={}",
+                LogMasker.sub(sub), LogMasker.email(email), jwt.getExpiresAt());
 
         return new Payload(sub, email);
     }
