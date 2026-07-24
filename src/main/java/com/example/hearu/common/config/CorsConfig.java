@@ -16,14 +16,12 @@ public class CorsConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // 허용 Origin (추후에 변경)
-        configuration.addAllowedOrigin("*");
+        // 허용 Origin (추후에 변경). allowCredentials(false)이므로 "*" 하나로 충분하다.
+        configuration.setAllowedOrigins(List.of("*"));
 
-        // 클라이언트가 보내는 헤더 허용
-        configuration.setAllowedOriginPatterns(List.of("*"));
-
-        // 클라이언트가 보내는 메서드 허용
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+        // 클라이언트가 보내는 메서드 허용.
+        // PATCH를 빠뜨리면 @PatchMapping(닉네임/AI 설정/앱 잠금) 요청의 preflight가 차단된다.
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
 
         // 클라이언트가 보내는 헤더 허용
         configuration.setAllowedHeaders(List.of("*"));
