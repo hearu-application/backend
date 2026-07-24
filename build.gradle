@@ -54,6 +54,12 @@ dependencies {
 	// MySQL JDBC 드라이버
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
+	// ==================== Database Migration ====================
+	// Flyway - 스키마 버전 관리. 버전별 마이그레이션 SQL을 순서대로, 중복 없이 자동 적용하고
+	// flyway_schema_history에 적용 이력을 기록한다. MySQL은 flyway-mysql 모듈이 필요하다.
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-mysql'
+
 	// ==================== Resilience ====================
 	// 재시도 로직 지원 - @Retryable (AI API 호출 등에 활용)
 	implementation 'org.springframework.retry:spring-retry'
