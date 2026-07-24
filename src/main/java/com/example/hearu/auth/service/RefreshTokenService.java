@@ -6,14 +6,9 @@ import com.example.hearu.auth.domain.error.AuthErrorCode;
 import com.example.hearu.auth.domain.policy.RefreshTokenPolicy;
 import com.example.hearu.auth.domain.entity.RefreshToken;
 import com.example.hearu.auth.infrastructure.repository.AuthRepository;
-import org.springframework.dao.DataAccessException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.hearu.common.client.slack.SlackNotifierClient;
 import com.example.hearu.common.security.jwt.JwtProvider;
 import com.example.hearu.user.domain.User;
 import com.example.hearu.auth.dto.request.RefreshTokenRequest;
@@ -29,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RefreshTokenService {
 
-    private final SlackNotifierClient slackNotifierClient;
     private final AuthRepository authRepository;
     private final RefreshTokenPolicy refreshTokenPolicy;
     private final JwtProvider jwtProvider;
@@ -100,11 +94,10 @@ public class RefreshTokenService {
         );
     }
 
-    @Retryable(
-            retryFor = { DataAccessException.class },
-            maxAttempts = 2, // 최초 1회 + 재시도 1회
-            backoff = @Backoff(delay = 1000)
-    )
+    // 재시도(@Retryable)와 최종 실패 복구(@Recover)는 비트랜잭션 호출자인
+    // RefreshTokenCleanupScheduler가 담당한다. 재시도를 이 메서드에 함께 두면 트랜잭션
+    // 어드바이스와 순서가 모호해져, 롤백된 트랜잭션 안에서 재시도가 도는 위험이 있다.
+    // 여기서는 트랜잭션 경계만 책임진다. (AiResponseCaller와 동일한 패턴)
     @Transactional
     public void deleteExpiredRefreshTokens() {
         LocalDateTime now = LocalDateTime.now();
@@ -115,26 +108,5 @@ public class RefreshTokenService {
         } else {
             log.debug("만료된 refresh token 없음. 기준시각={}", now);
         }
-    }
-
-    @Recover
-    public void recover(DataAccessException e) {
-        log.error(
-                "[Scheduler][RefreshTokenCleanup] 재시도 1회 후 최종 실패 - reason={}",
-                e.getMessage(),
-                e
-        );
-
-        slackNotifierClient.sendNotification("""
-        [Refresh token 정리 스케줄 실패]
-        • 작업: RefreshTokenCleanup
-        • 재시도: 1회 후 실패
-        • 원인: %s
-        • 시각: %s
-        """.formatted(
-                        e.getMessage(),
-                        LocalDateTime.now()
-                )
-        );
     }
 }

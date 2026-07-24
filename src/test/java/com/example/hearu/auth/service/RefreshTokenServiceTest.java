@@ -15,7 +15,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataAccessException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.hearu.auth.domain.ProviderType;
@@ -25,7 +24,6 @@ import com.example.hearu.auth.domain.policy.RefreshTokenPolicy;
 import com.example.hearu.auth.dto.request.RefreshTokenRequest;
 import com.example.hearu.auth.dto.response.RefreshTokenResponse;
 import com.example.hearu.auth.infrastructure.repository.AuthRepository;
-import com.example.hearu.common.client.slack.SlackNotifierClient;
 import com.example.hearu.common.security.jwt.JwtProvider;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.user.domain.User;
@@ -37,9 +35,6 @@ public class RefreshTokenServiceTest {
 
     private static final Long USER_ID = 1L;
     private static final LocalDateTime FIXED_EXPIRES_AT = LocalDateTime.of(2026, 12, 31, 0, 0);
-
-    @Mock
-    SlackNotifierClient slackNotifierClient;
 
     @Mock
     AuthRepository authRepository;
@@ -240,19 +235,6 @@ public class RefreshTokenServiceTest {
 
             // then
             verify(authRepository).deleteByExpiresAtBefore(any(LocalDateTime.class));
-        }
-
-        @Test
-        @DisplayName("슬랙 알림을 발송한다")
-        void send_slack_notification() {
-            // given
-            DataAccessException exception = new DataAccessException("DB 연결 실패") {};
-
-            // when
-            refreshTokenService.recover(exception);
-
-            // then
-            verify(slackNotifierClient).sendNotification(anyString());
         }
     }
 }
