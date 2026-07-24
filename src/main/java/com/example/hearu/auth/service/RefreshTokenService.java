@@ -51,6 +51,7 @@ public class RefreshTokenService {
             ));
 
         authRepository.save(refreshToken);
+        log.debug("refresh token 발급/갱신 완료. userId={}, expiresAt={}", user.getUserId(), expiresAt);
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +66,7 @@ public class RefreshTokenService {
     @Transactional
     public void deleteRefreshToken(Long userId) {
         authRepository.deleteById(userId);
+        log.debug("refresh token 삭제 완료. userId={}", userId);
     }
 
     @Transactional
@@ -76,6 +78,7 @@ public class RefreshTokenService {
         Claims claims = refreshTokenPolicy.validateAndGetClaims(inputToken);
 
         Long userId = jwtProvider.extractUserId(claims);
+        log.debug("refresh token 검증 통과. userId={}", userId);
 
         // 2. 저장된 토큰과 비교
         RefreshToken storedRefreshToken = getRefreshToken(userId);
@@ -88,6 +91,7 @@ public class RefreshTokenService {
 
         // 4. Refresh token 저장
         storedRefreshToken.updateToken(refreshToken, newExpiresAt);
+        log.debug("토큰 재발급 완료. userId={}, 새 만료시각={}", userId, newExpiresAt);
 
         // 5. Refresh token 반환
         return new RefreshTokenResponse(
@@ -108,6 +112,8 @@ public class RefreshTokenService {
 
         if (deletedCount > 0) {
             log.info("만료 refresh token 삭제 - count={}", deletedCount);
+        } else {
+            log.debug("만료된 refresh token 없음. 기준시각={}", now);
         }
     }
 

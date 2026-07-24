@@ -9,6 +9,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
+import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.SafeBody;
 
 import lombok.RequiredArgsConstructor;
@@ -19,14 +20,17 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class SlackNotifierClient {
 
-    private final RestClient restClient = RestClient.create();
+    // RestClientConfig의 타임아웃이 설정된 빈을 주입받는다.
+    // RestClient.create()로 직접 만들면 타임아웃이 없어 호출 스레드가 무한 대기할 수 있다.
+    private final RestClient slackRestClient;
 
     @Value("${slack.webhook.url}")
     private String webhookUrl;
 
     public void sendNotification(String message) {
+        log.debug("[NOTIFIER] Slack 알림 전송 시작. message={}", LogMasker.textLength(message));
         try {
-            restClient.post()
+            slackRestClient.post()
                 .uri(webhookUrl)
                 .body(Map.of("text", message))
                 .retrieve()
@@ -47,6 +51,8 @@ public class SlackNotifierClient {
                     throw new HttpServerErrorException(res.getStatusCode());
                 })
                 .toBodilessEntity();
+
+            log.debug("[NOTIFIER] Slack 알림 전송 완료");
         } catch (Exception e) {
             log.error("Slack 알림 전송 실패", e);
         }

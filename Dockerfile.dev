@@ -23,6 +23,7 @@ USER appuser
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport \
                        -XX:MaxRAMPercentage=75.0 \
                        -XX:InitialRAMPercentage=50.0 \
+                       -Duser.timezone=Asia/Seoul \
                        -Djava.security.egd=file:/dev/./urandom"
 
 EXPOSE 8080

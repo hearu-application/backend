@@ -160,6 +160,7 @@ jobs:
             # OAuth
             GOOGLE_CLIENT_ID=${{ secrets.PROD_GOOGLE_CLIENT_ID }}
             KAKAO_REST_API_KEY=${{ secrets.PROD_KAKAO_CLIENT_ID }}
+            APPLE_CLIENT_IDS=${{ secrets.PROD_APPLE_CLIENT_IDS }}
 
             # Naver Clova
             LLM_API_KEY=${{ secrets.PROD_CLOVA_API_KEY }}
@@ -169,6 +170,8 @@ jobs:
             SLACK_WEBHOOK_URL=${{ secrets.PROD_SLACK_WEBHOOK_URL }}
             EOF
 
+            chmod 600 .env
+
             # 최초 배포 시 SSL 인증서 발급
             if [ ! -d "./certbot/conf/live/hearu.p-e.kr" ]; then
               chmod +x init-letsencrypt.sh
@@ -177,12 +180,15 @@ jobs:
 
             # 배포
             docker compose -f docker-compose.prod.yml pull app
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans 
+            docker compose -f docker-compose.prod.yml exec nginx nginx -s reload || true
 
             # 정리
             docker image prune -f
 
             # 헬스체크
-            sleep 60
-            curl -f https://hearu.p-e.kr/actuator/health || exit 1
+            for i in $(seq 1 12); do
+              curl -sf https://hearu.p-e.kr/actuator/health && break
+              [ $i -eq 12 ] && exit 1
+              sleep 10
+            done

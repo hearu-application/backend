@@ -16,6 +16,9 @@ logging:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
 
+    # 로컬에서 인증/보안 흐름을 추적하기 위한 설정
+    org.springframework.security: debug
+
 springdoc:
   api-docs:
     enabled: true

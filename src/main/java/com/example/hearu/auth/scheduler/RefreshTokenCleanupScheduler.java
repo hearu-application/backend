@@ -17,9 +17,12 @@ public class RefreshTokenCleanupScheduler {
 
     @Scheduled(cron = "${scheduler.refresh-token.cleanup.cron}")
     public void cleanupExpiredRefreshTokens() {
+        long startedAt = System.currentTimeMillis();
         try {
             log.info("[Scheduler][RefreshTokenCleanup] 시작");
             refreshTokenService.deleteExpiredRefreshTokens();
+            log.info("[Scheduler][RefreshTokenCleanup] 완료. elapsed={}ms",
+                System.currentTimeMillis() - startedAt);
         } catch (Exception e) {
             log.error(
                 "[Scheduler][RefreshTokenCleanup] 비재시도 예외 발생",

@@ -24,17 +24,25 @@ public class AiFeedbackService {
 
         aiFeedbackRepository.findByAiResponse_AiResponseIdAndDeletedAtIsNull(aiResponse.getAiResponseId())
             .ifPresentOrElse(
-                feedback -> feedback.update(
-                    request.feedbackType(),
-                    request.dislikeReasonType(),
-                    request.customText()
-                ),
-                () -> aiFeedbackRepository.save(AiFeedback.create(
-                    aiResponse,
-                    request.feedbackType(),
-                    request.dislikeReasonType(),
-                    request.customText()
-                ))
+                feedback -> {
+                    log.debug("기존 피드백 갱신. userId={}, diaryId={}, aiResponseId={}, feedbackType={}",
+                        userId, diaryId, aiResponse.getAiResponseId(), request.feedbackType());
+                    feedback.update(
+                        request.feedbackType(),
+                        request.dislikeReasonType(),
+                        request.customText()
+                    );
+                },
+                () -> {
+                    log.debug("신규 피드백 생성. userId={}, diaryId={}, aiResponseId={}, feedbackType={}",
+                        userId, diaryId, aiResponse.getAiResponseId(), request.feedbackType());
+                    aiFeedbackRepository.save(AiFeedback.create(
+                        aiResponse,
+                        request.feedbackType(),
+                        request.dislikeReasonType(),
+                        request.customText()
+                    ));
+                }
             );
     }
 }

@@ -1,6 +1,7 @@
 package com.example.hearu.user.service;
 
 import com.example.hearu.auth.service.RefreshTokenService;
+import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.user.dto.request.NicknameUpdateRequest;
 import com.example.hearu.user.dto.request.UpdateAiSettingsRequest;
 import com.example.hearu.user.dto.response.NicknameUpdateResponse;
@@ -29,7 +30,9 @@ public class UserService {
         User user = getUserOrThrow(userId);
 
         // 닉네임 업데이트
+        String previousNickname = user.getNickname();
         user.updateNickname(request.nickname());
+        log.debug("닉네임 변경 완료. userId={}, 기존 닉네임 존재 여부={}", userId, previousNickname != null);
 
         // 엔티티 대신 DTO 반환
         return new NicknameUpdateResponse(user.getNickname());
@@ -48,6 +51,9 @@ public class UserService {
         // 1. User 엔티티 조회
         User user = getUserOrThrow(userId);
 
+        log.debug("프로필 조회 완료. userId={}, email={}, toneType={}, 앱잠금 설정={}",
+                userId, LogMasker.email(user.getEmail()), user.getToneType(), user.hasPassword());
+
         // 2. 엔티티(User)를 응답 DTO로 변환하여 반환
         return new ProfileResponse(
                 user.getNickname(),
@@ -64,6 +70,7 @@ public class UserService {
 
         // 2. Refresh Token 삭제
         refreshTokenService.deleteRefreshToken(userId);
+        log.info("사용자 로그아웃 완료. userId={}", userId);
     }
 
     @Transactional
@@ -74,6 +81,7 @@ public class UserService {
         // 2. Refresh Token hard-delete & User soft-delete
         refreshTokenService.deleteRefreshToken(userId);
         user.softDelete();
+        log.info("사용자 탈퇴(soft delete) 완료. userId={}", userId);
     }
 
     @Transactional
@@ -83,7 +91,11 @@ public class UserService {
 
         // 2. ToneType 값이 존재하면, 업데이트
         if (request.toneType() != null) {
+            log.debug("AI 응답 톤 변경. userId={}, {} -> {}",
+                    userId, user.getToneType(), request.toneType());
             user.updateToneType(request.toneType());
+        } else {
+            log.debug("AI 설정 요청에 toneType이 없어 변경 없음. userId={}", userId);
         }
     }
 }

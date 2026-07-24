@@ -5,7 +5,6 @@ import static org.mockito.BDDMockito.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
@@ -106,8 +105,8 @@ public class DiaryServiceTest {
             user.updateNickname("용준");
             LocalDate today = LocalDate.now();
             given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
-                1L, today.atStartOfDay(), today.atTime(LocalTime.MAX)
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                1L, today.atStartOfDay(), today.plusDays(1).atStartOfDay()
             )).willReturn(10);
 
             assertThatThrownBy(() -> diaryService.createDiary(1L, request))
@@ -121,8 +120,8 @@ public class DiaryServiceTest {
             user.updateNickname("용준");
             LocalDate today = LocalDate.now();
             given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
-                1L, today.atStartOfDay(), today.atTime(LocalTime.MAX)
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                1L, today.atStartOfDay(), today.plusDays(1).atStartOfDay()
             )).willReturn(1);
 
             DiaryCreateResponse response = diaryService.createDiary(1L, request);
@@ -217,8 +216,10 @@ public class DiaryServiceTest {
         void success() {
             LocalDate today = LocalDate.now();
             LocalDateTime start = today.atStartOfDay();
-            LocalDateTime end = today.atTime(LocalTime.MAX);
-            given(diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(1L, start, end)).willReturn(1);
+            LocalDateTime end = today.plusDays(1).atStartOfDay();
+            given(diaryRepository
+                .countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(1L, start, end))
+                .willReturn(1);
 
             DiaryTodayCountResponse result = diaryService.getTodayDiaryCount(1L);
 
@@ -257,7 +258,9 @@ public class DiaryServiceTest {
                 Diary.create(user, "내용2", EmotionType.NEUTRAL)
             );
             given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository.findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(user, start, end))
+            given(diaryRepository
+                .findByUserAndDeletedAtIsNullAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                    user, start, end))
                 .willReturn(diaries);
 
             List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);

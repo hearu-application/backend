@@ -1,0 +1,61 @@
+package com.example.hearu.common.client.slack;
+
+import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
+import com.example.hearu.common.config.RestClientConfig;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * RestClient 빈이 두 개(aiRestClient, slackRestClient)가 되면서 타입만으로는 주입 대상이
+ * 결정되지 않는다. 잘못 주입되면 타임아웃 설정이 어긋나는데 컴파일 시점에는 드러나지 않으므로,
+ * 실제 스프링 컨텍스트로 배선을 검증한다.
+ */
+@DisplayName("RestClient 빈 주입 배선")
+class SlackNotifierClientWiringTest {
+
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withUserConfiguration(RestClientConfig.class)
+            .withBean(SlackNotifierClient.class)
+            .withBean(NaverClovaClient.class)
+            .withPropertyValues(
+                    "slack.webhook.url=http://localhost/webhook",
+                    "llm.completion-url=http://localhost/llm",
+                    "llm.api-key=test-key"
+            );
+
+    @Test
+    @DisplayName("빈이 모호하지 않게 생성된다")
+    void contextLoadsWithoutAmbiguity() {
+        contextRunner.run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    @DisplayName("SlackNotifierClient에 slackRestClient 빈이 주입된다")
+    void slackClientGetsSlackRestClient() {
+        contextRunner.run(context -> {
+            SlackNotifierClient client = context.getBean(SlackNotifierClient.class);
+            RestClient expected = (RestClient) context.getBean("slackRestClient");
+
+            assertThat(ReflectionTestUtils.getField(client, "slackRestClient"))
+                    .isSameAs(expected);
+        });
+    }
+
+    @Test
+    @DisplayName("NaverClovaClient에 aiRestClient 빈이 주입된다")
+    void clovaClientGetsAiRestClient() {
+        contextRunner.run(context -> {
+            NaverClovaClient client = context.getBean(NaverClovaClient.class);
+            RestClient expected = (RestClient) context.getBean("aiRestClient");
+
+            assertThat(ReflectionTestUtils.getField(client, "aiRestClient"))
+                    .isSameAs(expected);
+        });
+    }
+}

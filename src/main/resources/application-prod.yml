@@ -6,11 +6,18 @@ spring:
 
 logging:
   level:
-    root: info
+    # 프레임워크/서드파티는 WARN 이상만. 애플리케이션 비즈니스 이벤트는 INFO까지 남겨
+    # 장애 시 정상 흐름을 추적할 수 있게 한다.
+    root: warn
     com.example.hearu: info
+
+    # 인증 실패 로그는 봇 트래픽으로 다량 발생하므로 WARN 이상만 남긴다.
     com.example.hearu.common.security: warn
-    org.hibernate.sql: off
-    org.hibernate.type.descriptor.sql: off
+
+    # root가 WARN이라 이미 억제되지만, 실수로 root를 낮추더라도
+    # 운영 DB 쿼리와 바인딩 파라미터가 노출되지 않도록 명시적으로 차단한다.
+    org.hibernate.SQL: off
+    org.hibernate.orm.jdbc.bind: off
 
 springdoc:
   api-docs:

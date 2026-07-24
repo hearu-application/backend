@@ -11,19 +11,19 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-public class GoogleProvider implements OauthProvider {
+public class AppleProvider implements OauthProvider {
 
-    private final GoogleTokenVerifier googleTokenVerifier;
+    private final AppleTokenVerifier appleTokenVerifier;
 
     @Override
     public ProviderType getProviderType() {
-        return ProviderType.GOOGLE;
+        return ProviderType.APPLE;
     }
 
     @Override
     public OauthUserInfo getUserInfoFromOauthServer(OauthRequest request) {
 
-        GoogleTokenVerifier.Payload payload = googleTokenVerifier.verifyToken(request.idToken());
+        AppleTokenVerifier.Payload payload = appleTokenVerifier.verifyToken(request.idToken());
 
         String sub = payload.sub();
         String email = payload.email();

@@ -6,7 +6,9 @@ import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.auth.dto.request.OauthRequest;
 import com.example.hearu.auth.dto.response.AuthResponse;
 import com.example.hearu.auth.dto.response.OauthUserInfo;
+import com.example.hearu.auth.domain.error.AuthErrorCode;
 import com.example.hearu.common.security.jwt.JwtProvider;
+import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.user.domain.User;
 import com.example.hearu.user.infrastructure.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +24,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 
@@ -106,6 +110,45 @@ public class AuthServiceTest {
             assertThat(authResponse.accessToken()).isEqualTo(accessToken);
             assertThat(authResponse.refreshToken()).isEqualTo(refreshToken);
             assertThat(authResponse.nickname()).isEqualTo("테스트닉네임");
+        }
+
+        @Test
+        @DisplayName("기존 회원 - email이 없어도 로그인에 성공한다 (Apple 재로그인 시나리오)")
+        void login_existing_user_without_email() {
+            // given - Apple은 최초 인증 시에만 email claim을 내려준다
+            OauthUserInfo userInfo = new OauthUserInfo("1234567890", null);
+            ReflectionTestUtils.setField(user, "userId", 1L);
+
+            given(oauthProvider.getUserInfoFromOauthServer(request)).willReturn(userInfo);
+            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(ProviderType.KAKAO, userInfo.sub()))
+                    .willReturn(Optional.of(user));
+            given(jwtProvider.createAccessToken(user.getUserId())).willReturn(accessToken);
+            given(jwtProvider.createRefreshToken(user.getUserId())).willReturn(refreshToken);
+
+            // when
+            AuthResponse authResponse = authService.registerOrLogin(ProviderType.KAKAO, request);
+
+            // then
+            assertThat(authResponse.accessToken()).isEqualTo(accessToken);
+            verify(userRepository, never()).save(any(User.class));
+        }
+
+        @Test
+        @DisplayName("신규 회원 - email이 없으면 MISSING_REQUIRED_CLAIMS를 던진다")
+        void register_new_user_without_email_throws() {
+            // given
+            OauthUserInfo userInfo = new OauthUserInfo("9999999999", null);
+
+            given(oauthProvider.getUserInfoFromOauthServer(request)).willReturn(userInfo);
+            given(userRepository.findByProviderAndProviderUserIdAndDeletedAtIsNull(ProviderType.KAKAO, userInfo.sub()))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> authService.registerOrLogin(ProviderType.KAKAO, request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", AuthErrorCode.MISSING_REQUIRED_CLAIMS);
+
+            verify(userRepository, never()).save(any(User.class));
         }
     }
 }

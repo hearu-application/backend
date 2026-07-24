@@ -1,5 +1,6 @@
 package com.example.hearu.diary.service;
 
+import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
@@ -20,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 
@@ -38,6 +38,9 @@ public class DiaryService {
     @Transactional
     public DiaryCreateResponse createDiary(Long userId, DiaryCreateRequest request) {
 
+        log.debug("일기 생성 시작. userId={}, emotionType={}, content={}",
+                userId, request.emotionType(), LogMasker.textLength(request.content()));
+
         // 1. User 엔티티 조회
         User user = userService.getUserOrThrow(userId);
 
@@ -46,12 +49,15 @@ public class DiaryService {
 
         // 3. 하루 일기 제한 검사(정책)
         LocalDate today = LocalDate.now();
-        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(
+        long count = diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             userId,
             today.atStartOfDay(),
-            today.atTime(LocalTime.MAX)
+            today.plusDays(1).atStartOfDay()
         );
+        log.debug("하루 일기 제한 검사. userId={}, 오늘 작성 수={}, 제한={}", userId, count, DIARY_DAILY_LIMIT);
         if (count >= DIARY_DAILY_LIMIT) {
+            log.warn("하루 일기 작성 제한을 초과했습니다. userId={}, count={}, limit={}",
+                    userId, count, DIARY_DAILY_LIMIT);
             throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
         }
 
@@ -63,7 +69,7 @@ public class DiaryService {
         );
         diaryRepository.save(diary);
 
-        // 5. Ai 응답 이벤트 발행
+        // 5. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
             new DiaryAiResponseRequestedEvent(
@@ -85,6 +91,8 @@ public class DiaryService {
 
     @Transactional(readOnly = true)
     public DiaryDetailResponse getDiaryDetail(Long userId, Long diaryId) {
+        log.debug("일기 상세 조회 시작. userId={}, diaryId={}", userId, diaryId);
+
         // 1. Diary 조회
         Diary diary = getDiaryOrThrow(userId, diaryId);
 
@@ -107,10 +115,12 @@ public class DiaryService {
         // 1. 오늘 날짜 확인
         LocalDate today = LocalDate.now();
         LocalDateTime start = today.atStartOfDay();
-        LocalDateTime end = today.atTime(LocalTime.MAX);
+        LocalDateTime end = today.plusDays(1).atStartOfDay();
 
         // 2. 오늘 일기 작성 횟수 조회
-        int todayDiaryCount = diaryRepository.countAllByUser_UserIdAndCreatedAtBetween(userId, start, end);
+        int todayDiaryCount = diaryRepository
+                .countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(userId, start, end);
+        log.debug("오늘 일기 작성 횟수 조회. userId={}, date={}, count={}", userId, today, todayDiaryCount);
 
         return new DiaryTodayCountResponse(todayDiaryCount);
     }
@@ -127,11 +137,15 @@ public class DiaryService {
         User user = userService.getUserOrThrow(userId);
 
         // 3. DB에서 해당 월의 일기 목록 조회
-        List<Diary> diaries = diaryRepository.findByUserAndDeletedAtIsNullAndCreatedAtBetweenOrderByCreatedAtDesc(
-                user,
-                start,
-                end
-        );
+        List<Diary> diaries = diaryRepository
+                .findByUserAndDeletedAtIsNullAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                        user,
+                        start,
+                        end
+                );
+
+        log.debug("캘린더 일기 목록 조회. userId={}, yearMonth={}, 조회 건수={}",
+                userId, yearMonth, diaries.size());
 
         // 4. DTO로 변환
         return diaries.stream().map(DiaryDetailResponse::fromEntity).toList();
@@ -148,6 +162,7 @@ public class DiaryService {
         // 3. 일기 삭제
         diary.softDelete();
         diary.getAiResponse().softDelete();
+        log.debug("일기 soft delete 완료. userId={}, diaryId={}", userId, diaryId);
     }
 
 

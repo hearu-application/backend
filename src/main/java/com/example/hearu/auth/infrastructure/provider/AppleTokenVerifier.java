@@ -15,26 +15,21 @@ import java.util.List;
 
 @Slf4j
 @Component
-public class GoogleTokenVerifier {
+public class AppleTokenVerifier {
 
-    private static final String GOOGLE_JWKS_URI = "https://www.googleapis.com/oauth2/v3/certs";
+    private static final String APPLE_ISSUER = "https://appleid.apple.com";
+    private static final String APPLE_JWKS_URI = APPLE_ISSUER + "/auth/keys";
 
-    // Google은 iss를 scheme 유무 두 형태로 발급하므로 모두 허용한다.
-    private static final List<String> GOOGLE_ISSUERS = List.of(
-            "https://accounts.google.com",
-            "accounts.google.com"
-    );
-
-    // iOS/Android 모두 serverClientId(웹 클라이언트 ID)로 토큰을 요청하므로 aud는 하나로 통일된다.
-    @Value("${oauth.google.client-id}")
-    private String googleClientId;
+    // iOS Bundle ID, Android Service ID 등 복수 audience 허용 (콤마 구분)
+    @Value("${oauth.apple.client-ids}")
+    private List<String> appleClientIds;
 
     private NimbusJwtDecoder jwtDecoder;
 
     @PostConstruct
     public void init() {
         this.jwtDecoder = NimbusJwtDecoder
-                .withJwkSetUri(GOOGLE_JWKS_URI)
+                .withJwkSetUri(APPLE_JWKS_URI)
                 .restOperations(JwksRestTemplateFactory.create())
                 .build();
         this.jwtDecoder.setJwtValidator(createValidator());
@@ -43,17 +38,15 @@ public class GoogleTokenVerifier {
     OAuth2TokenValidator<Jwt> createValidator() {
         return new DelegatingOAuth2TokenValidator<>(
                 new JwtTimestampValidator(),
-                // 현재 Spring Security는 iss를 String으로 두지만, 버전에 따라 URL로 변환될 수
-                // 있어 타입에 의존하지 않도록 문자열로 비교한다.
-                new JwtClaimValidator<Object>("iss",
-                        iss -> iss != null && GOOGLE_ISSUERS.contains(iss.toString())),
+                new JwtIssuerValidator(APPLE_ISSUER),
+                // 등록된 client-id 중 하나라도 token의 aud에 포함되면 통과 (iOS/Android 동시 지원)
                 new JwtClaimValidator<List<String>>("aud",
-                        aud -> aud != null && aud.contains(googleClientId))
+                        aud -> aud != null && aud.stream().anyMatch(appleClientIds::contains))
         );
     }
 
     public Payload verifyToken(String idToken) {
-        log.debug("Google ID Token 검증 시작. idToken={}", LogMasker.token(idToken));
+        log.debug("Apple ID Token 검증 시작. idToken={}", LogMasker.token(idToken));
 
         // 1. 서명 검증 (자동으로 JWKS에서 공개키 가져와서 검증) + iss/aud/exp 검증
         Jwt jwt;
@@ -62,21 +55,24 @@ public class GoogleTokenVerifier {
         } catch (Exception e) {
             // 잘못된 토큰은 정상적으로 발생하는 케이스이므로 WARN에는 메시지만 남기고,
             // 전체 스택트레이스는 디버깅이 필요한 dev/local(DEBUG)에서만 확인한다.
-            log.warn("Google ID Token 검증 실패. message={}", e.getMessage());
-            log.debug("Google ID Token 검증 실패 상세", e);
+            log.warn("Apple ID Token 검증 실패. message={}", e.getMessage());
+            log.debug("Apple ID Token 검증 실패 상세", e);
             throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
         }
 
         String sub = jwt.getSubject();
+        // Apple은 최초 인증 시에만 email claim을 내려주므로 재로그인 시 null일 수 있다.
+        // 신규 가입에 필요한 email 검증은 AuthService에서 수행한다.
         String email = jwt.getClaimAsString("email");
 
-        // 2. 필수 claim 검증 (email은 신규 가입 시에만 필요하므로 AuthService에서 검증)
+        // 2. 필수 claim 검증
         if (sub == null) {
-            log.warn("Google ID Token에 sub claim이 없습니다.");
+            log.warn("Apple ID Token에 sub claim이 없습니다.");
             throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
         }
 
-        log.debug("Google ID Token 검증 성공. sub={}, email={}, exp={}",
+        // Apple은 재로그인 시 email을 내려주지 않으므로, 존재 여부가 디버깅에 중요하다.
+        log.debug("Apple ID Token 검증 성공. sub={}, email={}, exp={}",
                 LogMasker.sub(sub), LogMasker.email(email), jwt.getExpiresAt());
 
         return new Payload(sub, email);
