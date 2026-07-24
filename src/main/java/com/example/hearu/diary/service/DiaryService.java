@@ -1,5 +1,6 @@
 package com.example.hearu.diary.service;
 
+import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
@@ -31,6 +32,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final UserService userService;
+    private final AiResponseService aiResponseService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final int DIARY_DAILY_LIMIT = 10;
@@ -69,7 +71,10 @@ public class DiaryService {
         );
         diaryRepository.save(diary);
 
-        // 5. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
+        // 5. PENDING 상태의 AI 응답 생성 (diary가 저장되어 id가 채워진 뒤 호출)
+        aiResponseService.createPending(diary);
+
+        // 6. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
             new DiaryAiResponseRequestedEvent(
@@ -81,7 +86,7 @@ public class DiaryService {
             )
         );
 
-        // 6. 생성된 일기 정보 반환
+        // 7. 생성된 일기 정보 반환
         return new DiaryCreateResponse(
                 diary.getDiaryId(),
                 diary.getContent(),
@@ -133,22 +138,16 @@ public class DiaryService {
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
 
-        // 2. User 조회
+        // 2. User 조회 (존재 검증)
         User user = userService.getUserOrThrow(userId);
 
-        // 3. DB에서 해당 월의 일기 목록 조회
-        List<Diary> diaries = diaryRepository
-                .findByUserAndDeletedAtIsNullAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
-                        user,
-                        start,
-                        end
-                );
+        // 3. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
+        List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(user, start, end);
 
         log.debug("캘린더 일기 목록 조회. userId={}, yearMonth={}, 조회 건수={}",
                 userId, yearMonth, diaries.size());
 
-        // 4. DTO로 변환
-        return diaries.stream().map(DiaryDetailResponse::fromEntity).toList();
+        return diaries;
     }
 
     @Transactional
@@ -159,9 +158,9 @@ public class DiaryService {
         // 2. 본인 일기 검증
         diary.validateOwner(userId);
 
-        // 3. 일기 삭제
+        // 3. 일기 및 AI 응답 soft delete
         diary.softDelete();
-        diary.getAiResponse().softDelete();
+        aiResponseService.softDeleteByDiaryId(diaryId);
         log.debug("일기 soft delete 완료. userId={}, diaryId={}", userId, diaryId);
     }
 

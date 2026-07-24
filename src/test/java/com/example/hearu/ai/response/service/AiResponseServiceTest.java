@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -155,6 +156,51 @@ public class AiResponseServiceTest {
             aiResponseService.markFailed(1L);
 
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.COMPLETED);
+        }
+    }
+
+    @Nested
+    @DisplayName("PENDING AI 응답 생성")
+    class CreatePending {
+
+        @Test
+        @DisplayName("성공 - PENDING 상태로 저장")
+        void success() {
+            User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
+            Diary diary = Diary.create(user, "내용", EmotionType.JOY);
+            ReflectionTestUtils.setField(diary, "diaryId", 1L);
+
+            aiResponseService.createPending(diary);
+
+            ArgumentCaptor<AiResponse> captor = ArgumentCaptor.forClass(AiResponse.class);
+            verify(aiResponseRepository).save(captor.capture());
+            assertThat(captor.getValue().getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+            assertThat(captor.getValue().getDiary()).isEqualTo(diary);
+        }
+    }
+
+    @Nested
+    @DisplayName("AI 응답 soft delete")
+    class SoftDeleteByDiaryId {
+
+        @Test
+        @DisplayName("존재하면 soft delete 한다")
+        void success() {
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            aiResponseService.softDeleteByDiaryId(1L);
+
+            assertThat(aiResponse.getDeletedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않아도 예외 없이 넘어간다")
+        void skip_when_absent() {
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            aiResponseService.softDeleteByDiaryId(1L);
+
+            assertThat(aiResponse.getDeletedAt()).isNull();
         }
     }
 }

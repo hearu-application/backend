@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.Diary;
@@ -45,6 +46,9 @@ public class DiaryServiceTest {
 
     @Mock
     UserService userService;
+
+    @Mock
+    AiResponseService aiResponseService;
 
     @Mock
     ApplicationEventPublisher applicationEventPublisher;
@@ -133,7 +137,10 @@ public class DiaryServiceTest {
             // 2. save() 호출 검증
             verify(diaryRepository).save(any(Diary.class));
 
-            // 3. 이벤트 검증
+            // 3. AI 응답(PENDING) 생성 호출 검증
+            verify(aiResponseService).createPending(any(Diary.class));
+
+            // 4. 이벤트 검증
             ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
                 ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
             verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
@@ -253,22 +260,19 @@ public class DiaryServiceTest {
         void success() {
             LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
             LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
-            List<Diary> diaries = List.of(
-                Diary.create(user, "내용1", EmotionType.ANGER),
-                Diary.create(user, "내용2", EmotionType.NEUTRAL)
+            List<DiaryDetailResponse> diaries = List.of(
+                new DiaryDetailResponse(1L, "내용1", EmotionType.ANGER, start, start),
+                new DiaryDetailResponse(2L, "내용2", EmotionType.NEUTRAL, start, start)
             );
             given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository
-                .findByUserAndDeletedAtIsNullAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
-                    user, start, end))
-                .willReturn(diaries);
+            given(diaryRepository.findCalendarDiaries(user, start, end)).willReturn(diaries);
 
             List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
 
-            assertThat(result.getFirst().emotionType()).isEqualTo(diaries.getFirst().getEmotionType());
-            assertThat(result.getFirst().content()).isEqualTo(diaries.getFirst().getContent());
-            assertThat(result.get(1).emotionType()).isEqualTo(diaries.get(1).getEmotionType());
-            assertThat(result.get(1).content()).isEqualTo(diaries.get(1).getContent());
+            assertThat(result.getFirst().emotionType()).isEqualTo(diaries.getFirst().emotionType());
+            assertThat(result.getFirst().content()).isEqualTo(diaries.getFirst().content());
+            assertThat(result.get(1).emotionType()).isEqualTo(diaries.get(1).emotionType());
+            assertThat(result.get(1).content()).isEqualTo(diaries.get(1).content());
         }
     }
 
@@ -304,7 +308,7 @@ public class DiaryServiceTest {
             diaryService.deleteDiary(1L, 1L);
 
             assertThat(diary.getDeletedAt()).isNotNull();
-            assertThat(diary.getAiResponse().getDeletedAt()).isNotNull();
+            verify(aiResponseService).softDeleteByDiaryId(1L);
         }
     }
 
