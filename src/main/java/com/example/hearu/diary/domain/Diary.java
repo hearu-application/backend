@@ -1,6 +1,5 @@
 package com.example.hearu.diary.domain;
 
-import com.example.hearu.ai.response.domain.AiResponse;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
@@ -25,8 +24,9 @@ public class Diary extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToOne(mappedBy = "diary", cascade = CascadeType.PERSIST)
-    private AiResponse aiResponse;
+    // AiResponse와는 단방향(AiResponse -> Diary)으로만 연결한다. Diary가 AiResponse를 역참조하면
+    // @OneToOne 기본 EAGER 때문에 모든 Diary 조회에 ai_response SELECT가 딸려와 N+1을 유발한다.
+    // AiResponse의 생성/삭제는 AiResponseService가 담당한다.
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
@@ -42,9 +42,7 @@ public class Diary extends BaseEntity {
     }
 
     public static Diary create(User user, String content, EmotionType emotionType) {
-        Diary diary = new Diary(user, content, emotionType);
-        diary.aiResponse = AiResponse.create(diary);
-        return diary;
+        return new Diary(user, content, emotionType);
     }
 
     public void validateOwner(Long userId) {

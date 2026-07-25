@@ -3,11 +3,13 @@ package com.example.hearu.common.util.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -96,6 +98,36 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(e.getErrorCode().getHttpStatus().value()).body(response);
+    }
+
+    /** 지원하지 않는 HTTP 메서드로 요청 (405) */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+
+        log.warn("지원하지 않는 HTTP 메서드 요청. 상세 메시지={}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+            .status(405)
+            .code("METHOD_NOT_ALLOWED")
+            .message("지원하지 않는 요청 방식입니다.")
+            .build();
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    /** 매핑된 핸들러가 없는 경로 요청 (404) */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException e) {
+
+        log.warn("존재하지 않는 경로 요청. 상세 메시지={}", e.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+            .status(404)
+            .code("NOT_FOUND")
+            .message("요청하신 리소스를 찾을 수 없습니다.")
+            .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     /** 외부 API 타임아웃 */

@@ -4,7 +4,8 @@ spring:
     # SQL 로그는 아래 logging.level.org.hibernate.SQL로 제어한다.
     show-sql: false
     hibernate:
-      ddl-auto: update
+      # 스키마 변경은 Flyway가 전담한다. Hibernate는 엔티티와 스키마 일치 여부만 검증한다.
+      ddl-auto: validate
 
 logging:
   level:

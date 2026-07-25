@@ -20,6 +20,16 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
 
+  # Flyway가 스키마의 단일 소스다. ddl-auto는 프로필별로 validate로 두어 검증만 담당한다.
+  flyway:
+    enabled: true
+    # 기존 dev/prod DB는 이미 스키마가 있다(Flyway 도입 이전). 스키마가 비어있지 않은데
+    # 이력 테이블이 없으면, V1을 실행하지 않고 baseline-version(1)으로 표시만 한 뒤 V2부터 적용한다.
+    # 빈 DB(신규 개발자 로컬)에서는 V1부터 순서대로 전부 적용한다.
+    baseline-on-migrate: true
+    baseline-version: 1
+    baseline-description: "Flyway 도입 이전 스키마 (baseline)"
+
 oauth:
   kakao:
     client-id: ${KAKAO_REST_API_KEY}
