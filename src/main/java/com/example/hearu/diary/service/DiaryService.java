@@ -139,12 +139,9 @@ public class DiaryService {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-
-        // 2. User 조회 (존재 검증)
-        User user = userService.getUserOrThrow(userId);
-
-        // 3. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
-        List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(user, start, end);
+        // 2. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
+        //    userId만으로 조회한다. 사용자 존재는 인증 통과 시점에 보장되고, 삭제된 사용자면 결과가 빈다.
+        List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(userId, start, end);
 
         log.debug("캘린더 일기 목록 조회. userId={}, yearMonth={}, 조회 건수={}",
                 userId, yearMonth, diaries.size());

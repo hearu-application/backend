@@ -252,13 +252,15 @@ public class DiaryServiceTest {
         }
 
         @Test
-        @DisplayName("사용자가 없는 경우, 예외 처리")
-        void user_not_found() {
-            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        @DisplayName("일기가 없는 경우, 빈 목록 반환")
+        void empty() {
+            LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+            LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+            given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(List.of());
 
-            assertThatThrownBy(() -> diaryService.getCalendarDiaries(1L, yearMonth))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+            List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
+
+            assertThat(result).isEmpty();
         }
 
         @Test
@@ -270,8 +272,7 @@ public class DiaryServiceTest {
                 new DiaryDetailResponse(1L, "내용1", EmotionType.ANGER, start, start),
                 new DiaryDetailResponse(2L, "내용2", EmotionType.NEUTRAL, start, start)
             );
-            given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository.findCalendarDiaries(user, start, end)).willReturn(diaries);
+            given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(diaries);
 
             List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
 
