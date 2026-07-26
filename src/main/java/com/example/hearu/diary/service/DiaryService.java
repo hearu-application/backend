@@ -173,7 +173,7 @@ public class DiaryService {
                 });
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void requestAiResponse(Long userId, Long diaryId) {
         // 1. User 엔티티 조회
         User user = userService.getUserOrThrow(userId);
@@ -184,7 +184,11 @@ public class DiaryService {
         // 3. 일기 사용자 검증
         diary.validateOwner(userId);
 
-        // 4. Ai 응답 이벤트 발행
+        // 4. AI 응답 상태를 PENDING으로 초기화 (COMPLETED면 여기서 거부된다)
+        //    이벤트는 AFTER_COMMIT에 처리되므로, 커밋 시점에 PENDING이 먼저 반영된다.
+        aiResponseService.markPending(diaryId);
+
+        // 5. Ai 응답 이벤트 발행
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
                 new DiaryAiResponseRequestedEvent(

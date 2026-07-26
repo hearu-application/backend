@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -350,12 +352,32 @@ public class DiaryServiceTest {
         }
 
         @Test
+        @DisplayName("이미 완료된 AI 응답인 경우, 예외 처리 및 이벤트 미발행")
+        void already_completed() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+            willThrow(new BusinessException(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED))
+                .given(aiResponseService).markPending(1L);
+
+            assertThatThrownBy(() -> diaryService.requestAiResponse(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED.getMessage());
+
+            verify(applicationEventPublisher, never()).publishEvent(any(DiaryAiResponseRequestedEvent.class));
+        }
+
+        @Test
         @DisplayName("성공")
         void success() {
             given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
 
             diaryService.requestAiResponse(1L, 1L);
+
+            // 상태 초기화가 이벤트 발행보다 먼저여야 폴링이 재시도 직후 PENDING을 읽는다
+            InOrder inOrder = Mockito.inOrder(aiResponseService, applicationEventPublisher);
+            inOrder.verify(aiResponseService).markPending(1L);
+            inOrder.verify(applicationEventPublisher).publishEvent(any(DiaryAiResponseRequestedEvent.class));
 
             ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
                 ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
