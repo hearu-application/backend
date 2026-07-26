@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.hearu.ai.feedback.service.AiFeedbackService;
 import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.auth.domain.ProviderType;
@@ -51,6 +52,9 @@ public class DiaryServiceTest {
 
     @Mock
     AiResponseService aiResponseService;
+
+    @Mock
+    AiFeedbackService aiFeedbackService;
 
     @Mock
     ApplicationEventPublisher applicationEventPublisher;
@@ -311,6 +315,7 @@ public class DiaryServiceTest {
 
             assertThat(diary.getDeletedAt()).isNotNull();
             verify(aiResponseService).softDeleteByDiaryId(1L);
+            verify(aiFeedbackService).softDeleteByDiaryId(1L);
         }
     }
 

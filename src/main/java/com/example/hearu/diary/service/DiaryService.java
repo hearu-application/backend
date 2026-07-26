@@ -1,5 +1,6 @@
 package com.example.hearu.diary.service;
 
+import com.example.hearu.ai.feedback.service.AiFeedbackService;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -33,6 +34,7 @@ public class DiaryService {
     private final DiaryRepository diaryRepository;
     private final UserService userService;
     private final AiResponseService aiResponseService;
+    private final AiFeedbackService aiFeedbackService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final int DIARY_DAILY_LIMIT = 10;
@@ -158,9 +160,12 @@ public class DiaryService {
         // 2. 본인 일기 검증
         diary.validateOwner(userId);
 
-        // 3. 일기 및 AI 응답 soft delete
+        // 3. 일기 및 하위 데이터(AI 응답·피드백) soft delete
+        //    전파를 여기 한 곳에서 관장한다. AiFeedbackService가 AiResponseService를 주입받고 있어
+        //    AI 응답 쪽에서 피드백을 연쇄 삭제하면 순환 참조가 된다.
         diary.softDelete();
         aiResponseService.softDeleteByDiaryId(diaryId);
+        aiFeedbackService.softDeleteByDiaryId(diaryId);
         log.debug("일기 soft delete 완료. userId={}, diaryId={}", userId, diaryId);
     }
 
