@@ -6,6 +6,7 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -34,7 +35,8 @@ public class AiResponseCaller {
     @Retryable(
         retryFor = {
             ResourceAccessException.class,
-            HttpServerErrorException.class
+            HttpServerErrorException.class,
+            HttpClientErrorException.TooManyRequests.class
         },
         maxAttempts = 2,
         backoff = @Backoff(delay = 1000)
@@ -91,7 +93,8 @@ public class AiResponseCaller {
             log.info("[AI][Complete] diaryId={}, userId={}, elapsed={}ms",
                 event.diaryId(), event.userId(), System.currentTimeMillis() - startedAt);
 
-        } catch (ResourceAccessException | HttpServerErrorException e) {
+        } catch (ResourceAccessException | HttpServerErrorException
+                 | HttpClientErrorException.TooManyRequests e) {
             // @Retryable / @Recover 가 처리
             log.debug("[AI][Retryable] 재시도 대상 예외 발생. diaryId={}, reason={}",
                 event.diaryId(), e.getClass().getSimpleName());
@@ -117,6 +120,13 @@ public class AiResponseCaller {
     @Recover
     public void recover(HttpServerErrorException e, DiaryAiResponseRequestedEvent event) {
         log.error("[AI][RetryFail][5xx] diaryId={}, userId={}, reason={}, message={}",
+            event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage());
+        aiResponseService.markFailed(event.diaryId());
+    }
+
+    @Recover
+    public void recover(HttpClientErrorException.TooManyRequests e, DiaryAiResponseRequestedEvent event) {
+        log.error("[AI][RetryFail][429] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage());
         aiResponseService.markFailed(event.diaryId());
     }

@@ -1,5 +1,6 @@
 package com.example.hearu.ai.response.infrastructure.client;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,12 +72,19 @@ public class NaverClovaClient {
             .body(body)
             .retrieve()
             .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                String errorBody = SafeBody.read(res);
                 log.warn(
                     "[AI][CALL_FAIL][4xx] status={}, body={}",
                     res.getStatusCode(),
-                    SafeBody.read(res)
+                    errorBody
                 );
-                throw new HttpClientErrorException(res.getStatusCode());
+                throw HttpClientErrorException.create(
+                    res.getStatusCode(),
+                    res.getStatusText(),
+                    res.getHeaders(),
+                    errorBody.getBytes(StandardCharsets.UTF_8),
+                    StandardCharsets.UTF_8
+                );
             })
             .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
                 log.error(
