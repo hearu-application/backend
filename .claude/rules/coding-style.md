@@ -46,5 +46,5 @@ LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 ## 외부 호출
 
 모든 외부 클라이언트에 **타임아웃 필수**. 타임아웃 없는 클라이언트는 지연 시 호출 스레드를 무한
-대기시켜 스레드 풀 고갈로 이어진다. 기존 설정은 `RestClientConfig`(Clova/Slack),
+대기시켜 스레드 풀 고갈로 이어진다. 기존 설정은 `RestClientConfig`(Clova/Discord),
 `JwksRestTemplateFactory`(OAuth JWKS)를 참고한다.

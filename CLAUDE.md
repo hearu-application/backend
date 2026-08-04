@@ -108,7 +108,7 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | `docs` | 문서만 변경 |
 
 **scope** — 변경이 속한 **도메인 모듈**을 우선(`user`, `diary`, `auth`, `ai-response`, `ai-feedback`).
-도메인에 속하지 않으면 관심사(`common`, `logging`, `db`, `cors`, `error`, `docker`, `nginx`, `slack`,
+도메인에 속하지 않으면 관심사(`common`, `logging`, `db`, `cors`, `error`, `docker`, `nginx`, `discord`,
 `dev-cicd`, `prod-cicd`). 범위가 하나로 좁혀지지 않으면 생략(`chore: ...`). 새 scope를 즉흥적으로 만들지 않는다.
 
 **본문** — 제목 한 줄로 이유가 안 되면 본문에 배경("왜")을 적는다(제목은 결과, 본문은 이유).
@@ -120,7 +120,7 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | Auth | Spring Security + JWT (jjwt 0.11.5) + Google/Kakao/Apple OAuth2 |
 | Database | MySQL + Spring Data JPA (MySQLDialect), 스키마는 Flyway |
 | AI | Naver Clova API (`NaverClovaClient`) |
-| Notifications | Slack webhook (`SlackNotifierClient`) |
+| Notifications | Discord webhook (`DiscordNotifierClient`) |
 | Scheduling | `@Scheduled` cron — refresh token 정리 (`RefreshTokenCleanupScheduler`) |
 | Docs | SpringDoc OpenAPI (Swagger UI) |
 | Observability | 프로필별 로그 레벨, `MdcLoggingFilter`, `MdcTaskDecorator`, `LogMasker`, Actuator (`/actuator/health`) |
@@ -139,4 +139,4 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | `KAKAO_REST_API_KEY` | Kakao OAuth |
 | `APPLE_CLIENT_IDS` | Apple OAuth. 콤마 구분 (iOS Bundle ID + Android Service ID) |
 | `LLM_COMPLETION_URL`, `LLM_API_KEY` | Naver Clova |
-| `SLACK_WEBHOOK_URL` | 장애 알림 |
+| `DISCORD_WEBHOOK_URL` | 장애 알림 |

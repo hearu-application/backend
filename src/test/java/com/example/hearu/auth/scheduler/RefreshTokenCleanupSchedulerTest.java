@@ -11,7 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataAccessException;
 
 import com.example.hearu.auth.service.RefreshTokenService;
-import com.example.hearu.common.client.slack.SlackNotifierClient;
+import com.example.hearu.common.client.discord.DiscordNotifierClient;
 
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenCleanupSchedulerTest {
@@ -20,7 +20,7 @@ class RefreshTokenCleanupSchedulerTest {
     RefreshTokenService refreshTokenService;
 
     @Mock
-    SlackNotifierClient slackNotifierClient;
+    DiscordNotifierClient discordNotifierClient;
 
     @InjectMocks
     RefreshTokenCleanupScheduler scheduler;
@@ -31,16 +31,16 @@ class RefreshTokenCleanupSchedulerTest {
         scheduler.cleanupExpiredRefreshTokens();
 
         verify(refreshTokenService).deleteExpiredRefreshTokens();
-        verifyNoInteractions(slackNotifierClient);
+        verifyNoInteractions(discordNotifierClient);
     }
 
     @Test
-    @DisplayName("재시도 소진(recover) 시 슬랙 알림을 발송한다")
-    void recover_sends_slack_notification() {
+    @DisplayName("재시도 소진(recover) 시 Discord 알림을 발송한다")
+    void recover_sends_discord_notification() {
         DataAccessException exception = new DataAccessException("DB 연결 실패") {};
 
         scheduler.recover(exception);
 
-        verify(slackNotifierClient).sendNotification(anyString());
+        verify(discordNotifierClient).sendNotification(anyString());
     }
 }

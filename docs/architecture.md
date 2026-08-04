@@ -23,7 +23,7 @@ graph LR
     DB[(MySQL)]
     Clova[Naver Clova<br/>LLM]
     OAuth[Google / Kakao / Apple<br/>JWKS · 토큰 검증]
-    Slack[Slack Webhook]
+    Discord[Discord Webhook]
 
     App -->|JWT| API
     API --> DB
@@ -31,7 +31,7 @@ graph LR
     Async --> Clova
     Async --> DB
     Sched --> DB
-    Sched -->|실패 시| Slack
+    Sched -->|실패 시| Discord
     API --> OAuth
 ```
 
@@ -41,7 +41,7 @@ graph LR
 | 대상 | 클라이언트 | connect / read |
 |---|---|---|
 | Naver Clova | `aiRestClient` (`RestClientConfig`) | 3s / 6s |
-| Slack | `slackRestClient` (`RestClientConfig`) | 3s / 5s |
+| Discord | `discordRestClient` (`RestClientConfig`) | 3s / 5s |
 | OAuth JWKS | `JwksRestTemplateFactory` | 설정 참조 |
 
 ---
@@ -308,7 +308,7 @@ graph TD
 RefreshTokenCleanupScheduler   cron: 0 0 3 * * *  (매일 03:00)
   → RefreshTokenService.deleteExpiredRefreshTokens()   @Transactional
   → DataAccessException이면 @Retryable로 1회 재시도
-  → 소진 시 @Recover → log.error + Slack 알림
+  → 소진 시 @Recover → log.error + Discord 알림
 ```
 
 **`@Retryable`은 스케줄러(비트랜잭션)에, `@Transactional`은 서비스에 둔다.** 한 메서드에 겹치면

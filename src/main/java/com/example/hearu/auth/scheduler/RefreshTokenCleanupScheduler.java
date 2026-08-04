@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.example.hearu.auth.service.RefreshTokenService;
-import com.example.hearu.common.client.slack.SlackNotifierClient;
+import com.example.hearu.common.client.discord.DiscordNotifierClient;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class RefreshTokenCleanupScheduler {
 
     private final RefreshTokenService refreshTokenService;
-    private final SlackNotifierClient slackNotifierClient;
+    private final DiscordNotifierClient discordNotifierClient;
 
     // 재시도(@Retryable)를 트랜잭션 바깥(비트랜잭션 스케줄러)에 두고, 실제 DB 작업은 별개 빈인
     // RefreshTokenService의 @Transactional 메서드에 위임한다. 이렇게 하면 재시도할 때마다 새
@@ -50,7 +50,7 @@ public class RefreshTokenCleanupScheduler {
             e
         );
 
-        slackNotifierClient.sendNotification("""
+        discordNotifierClient.sendNotification("""
         [Refresh token 정리 스케줄 실패]
         • 작업: RefreshTokenCleanup
         • 재시도: 1회 후 실패

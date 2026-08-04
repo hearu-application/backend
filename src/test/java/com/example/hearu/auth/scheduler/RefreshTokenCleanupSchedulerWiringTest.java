@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
 
 import com.example.hearu.auth.service.RefreshTokenService;
-import com.example.hearu.common.client.slack.SlackNotifierClient;
+import com.example.hearu.common.client.discord.DiscordNotifierClient;
 
 /**
  * 스케줄러 메서드에 @Scheduled와 @Retryable을 함께 두었을 때, 재시도 프록시가 적용되면서도
@@ -26,7 +26,7 @@ class RefreshTokenCleanupSchedulerWiringTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(TestConfig.class)
             .withBean(RefreshTokenService.class, () -> mock(RefreshTokenService.class))
-            .withBean(SlackNotifierClient.class, () -> mock(SlackNotifierClient.class))
+            .withBean(DiscordNotifierClient.class, () -> mock(DiscordNotifierClient.class))
             .withBean(RefreshTokenCleanupScheduler.class)
             .withPropertyValues("scheduler.refresh-token.cleanup.cron=0 0 3 * * *");
 

@@ -166,8 +166,8 @@ jobs:
             LLM_API_KEY=${{ secrets.PROD_CLOVA_API_KEY }}
             LLM_COMPLETION_URL=${{ secrets.PROD_CLOVA_COMPLETION_URL }}
 
-            # Slack
-            SLACK_WEBHOOK_URL=${{ secrets.PROD_SLACK_WEBHOOK_URL }}
+            # Discord
+            DISCORD_WEBHOOK_URL=${{ secrets.PROD_DISCORD_WEBHOOK_URL }}
             EOF
 
             chmod 600 .env
