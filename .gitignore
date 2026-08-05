@@ -1,6 +1,7 @@
 HELP.md
 .gradle
 .env
+local.properties
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -36,3 +37,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Claude Code ###
+# 개인 설정만 제외한다. CLAUDE.md와 .claude/rules/는 팀 공유 대상이므로 커밋한다.
+.claude/settings.local.json
+CLAUDE.local.md

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -22,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.example.hearu.ai.feedback.service.AiFeedbackService;
+import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -49,6 +52,9 @@ public class DiaryServiceTest {
 
     @Mock
     AiResponseService aiResponseService;
+
+    @Mock
+    AiFeedbackService aiFeedbackService;
 
     @Mock
     ApplicationEventPublisher applicationEventPublisher;
@@ -246,13 +252,15 @@ public class DiaryServiceTest {
         }
 
         @Test
-        @DisplayName("사용자가 없는 경우, 예외 처리")
-        void user_not_found() {
-            given(userService.getUserOrThrow(1L)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        @DisplayName("일기가 없는 경우, 빈 목록 반환")
+        void empty() {
+            LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
+            LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+            given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(List.of());
 
-            assertThatThrownBy(() -> diaryService.getCalendarDiaries(1L, yearMonth))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(UserErrorCode.USER_NOT_FOUND.getMessage());
+            List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
+
+            assertThat(result).isEmpty();
         }
 
         @Test
@@ -264,8 +272,7 @@ public class DiaryServiceTest {
                 new DiaryDetailResponse(1L, "내용1", EmotionType.ANGER, start, start),
                 new DiaryDetailResponse(2L, "내용2", EmotionType.NEUTRAL, start, start)
             );
-            given(userService.getUserOrThrow(1L)).willReturn(user);
-            given(diaryRepository.findCalendarDiaries(user, start, end)).willReturn(diaries);
+            given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(diaries);
 
             List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
 
@@ -309,6 +316,7 @@ public class DiaryServiceTest {
 
             assertThat(diary.getDeletedAt()).isNotNull();
             verify(aiResponseService).softDeleteByDiaryId(1L);
+            verify(aiFeedbackService).softDeleteByDiaryId(1L);
         }
     }
 
@@ -350,12 +358,32 @@ public class DiaryServiceTest {
         }
 
         @Test
+        @DisplayName("이미 완료된 AI 응답인 경우, 예외 처리 및 이벤트 미발행")
+        void already_completed() {
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+            willThrow(new BusinessException(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED))
+                .given(aiResponseService).markPending(1L);
+
+            assertThatThrownBy(() -> diaryService.requestAiResponse(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED.getMessage());
+
+            verify(applicationEventPublisher, never()).publishEvent(any(DiaryAiResponseRequestedEvent.class));
+        }
+
+        @Test
         @DisplayName("성공")
         void success() {
             given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
 
             diaryService.requestAiResponse(1L, 1L);
+
+            // 상태 초기화가 이벤트 발행보다 먼저여야 폴링이 재시도 직후 PENDING을 읽는다
+            InOrder inOrder = Mockito.inOrder(aiResponseService, applicationEventPublisher);
+            inOrder.verify(aiResponseService).markPending(1L);
+            inOrder.verify(applicationEventPublisher).publishEvent(any(DiaryAiResponseRequestedEvent.class));
 
             ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
                 ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);

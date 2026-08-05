@@ -160,6 +160,55 @@ public class AiResponseServiceTest {
     }
 
     @Nested
+    @DisplayName("AI 응답 재요청 시 상태 PENDING으로 초기화")
+    class MarkPending {
+
+        @Test
+        @DisplayName("AI 응답이 없는 경우, 예외 처리")
+        void ai_response_not_found() {
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> aiResponseService.markPending(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("이미 COMPLETED 상태인 경우, 재요청 거부")
+        void already_completed_rejected() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.COMPLETED);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            assertThatThrownBy(() -> aiResponseService.markPending(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED.getMessage());
+
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.COMPLETED);
+        }
+
+        @Test
+        @DisplayName("FAILED 상태인 경우, PENDING으로 초기화")
+        void failed_to_pending() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.FAILED);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            aiResponseService.markPending(1L);
+
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+        }
+
+        @Test
+        @DisplayName("이미 PENDING 상태인 경우, 예외 없이 PENDING 유지")
+        void already_pending_kept() {
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            aiResponseService.markPending(1L);
+
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+        }
+    }
+
+    @Nested
     @DisplayName("PENDING AI 응답 생성")
     class CreatePending {
 

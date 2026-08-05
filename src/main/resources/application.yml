@@ -54,9 +54,9 @@ llm:
   repeat-penalty: 1.1
   max-tokens: 1000
 
-slack:
+discord:
   webhook:
-    url: ${SLACK_WEBHOOK_URL}
+    url: ${DISCORD_WEBHOOK_URL}
 
 scheduler:
   refresh-token:

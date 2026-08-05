@@ -1,5 +1,6 @@
 package com.example.hearu.diary.service;
 
+import com.example.hearu.ai.feedback.service.AiFeedbackService;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -33,6 +34,7 @@ public class DiaryService {
     private final DiaryRepository diaryRepository;
     private final UserService userService;
     private final AiResponseService aiResponseService;
+    private final AiFeedbackService aiFeedbackService;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final int DIARY_DAILY_LIMIT = 10;
@@ -137,12 +139,9 @@ public class DiaryService {
         LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
         LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
 
-
-        // 2. User 조회 (존재 검증)
-        User user = userService.getUserOrThrow(userId);
-
-        // 3. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
-        List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(user, start, end);
+        // 2. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
+        //    userId만으로 조회한다. 사용자 존재는 인증 통과 시점에 보장되고, 삭제된 사용자면 결과가 빈다.
+        List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(userId, start, end);
 
         log.debug("캘린더 일기 목록 조회. userId={}, yearMonth={}, 조회 건수={}",
                 userId, yearMonth, diaries.size());
@@ -158,9 +157,12 @@ public class DiaryService {
         // 2. 본인 일기 검증
         diary.validateOwner(userId);
 
-        // 3. 일기 및 AI 응답 soft delete
+        // 3. 일기 및 하위 데이터(AI 응답·피드백) soft delete
+        //    전파를 여기 한 곳에서 관장한다. AiFeedbackService가 AiResponseService를 주입받고 있어
+        //    AI 응답 쪽에서 피드백을 연쇄 삭제하면 순환 참조가 된다.
         diary.softDelete();
         aiResponseService.softDeleteByDiaryId(diaryId);
+        aiFeedbackService.softDeleteByDiaryId(diaryId);
         log.debug("일기 soft delete 완료. userId={}, diaryId={}", userId, diaryId);
     }
 
@@ -173,7 +175,7 @@ public class DiaryService {
                 });
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void requestAiResponse(Long userId, Long diaryId) {
         // 1. User 엔티티 조회
         User user = userService.getUserOrThrow(userId);
@@ -184,7 +186,11 @@ public class DiaryService {
         // 3. 일기 사용자 검증
         diary.validateOwner(userId);
 
-        // 4. Ai 응답 이벤트 발행
+        // 4. AI 응답 상태를 PENDING으로 초기화 (COMPLETED면 여기서 거부된다)
+        //    이벤트는 AFTER_COMMIT에 처리되므로, 커밋 시점에 PENDING이 먼저 반영된다.
+        aiResponseService.markPending(diaryId);
+
+        // 5. Ai 응답 이벤트 발행
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
                 new DiaryAiResponseRequestedEvent(

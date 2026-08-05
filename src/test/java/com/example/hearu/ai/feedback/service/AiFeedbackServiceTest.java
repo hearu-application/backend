@@ -175,4 +175,31 @@ public class AiFeedbackServiceTest {
             then(aiFeedbackRepository).should(never()).save(any());
         }
     }
+
+    @Nested
+    @DisplayName("AI 피드백 soft delete")
+    class SoftDeleteByDiaryId {
+
+        @Test
+        @DisplayName("존재하면 soft delete 한다")
+        void success() {
+            AiFeedback feedback = AiFeedback.create(aiResponse, FeedbackType.LIKE, null, null);
+            given(aiFeedbackRepository.findByAiResponse_Diary_DiaryIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(feedback));
+
+            aiFeedbackService.softDeleteByDiaryId(1L);
+
+            assertThat(feedback.getDeletedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않아도 예외 없이 넘어간다")
+        void skip_when_absent() {
+            given(aiFeedbackRepository.findByAiResponse_Diary_DiaryIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.empty());
+
+            assertThatNoException()
+                .isThrownBy(() -> aiFeedbackService.softDeleteByDiaryId(1L));
+        }
+    }
 }

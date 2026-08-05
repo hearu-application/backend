@@ -1,4 +1,4 @@
-package com.example.hearu.common.client.slack;
+package com.example.hearu.common.client.discord;
 
 import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
 import com.example.hearu.common.config.RestClientConfig;
@@ -12,19 +12,19 @@ import org.springframework.web.client.RestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * RestClient 빈이 두 개(aiRestClient, slackRestClient)가 되면서 타입만으로는 주입 대상이
+ * RestClient 빈이 두 개(aiRestClient, discordRestClient)가 되면서 타입만으로는 주입 대상이
  * 결정되지 않는다. 잘못 주입되면 타임아웃 설정이 어긋나는데 컴파일 시점에는 드러나지 않으므로,
  * 실제 스프링 컨텍스트로 배선을 검증한다.
  */
 @DisplayName("RestClient 빈 주입 배선")
-class SlackNotifierClientWiringTest {
+class DiscordNotifierClientWiringTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(RestClientConfig.class)
-            .withBean(SlackNotifierClient.class)
+            .withBean(DiscordNotifierClient.class)
             .withBean(NaverClovaClient.class)
             .withPropertyValues(
-                    "slack.webhook.url=http://localhost/webhook",
+                    "discord.webhook.url=http://localhost/webhook",
                     "llm.completion-url=http://localhost/llm",
                     "llm.api-key=test-key"
             );
@@ -36,13 +36,13 @@ class SlackNotifierClientWiringTest {
     }
 
     @Test
-    @DisplayName("SlackNotifierClient에 slackRestClient 빈이 주입된다")
-    void slackClientGetsSlackRestClient() {
+    @DisplayName("DiscordNotifierClient에 discordRestClient 빈이 주입된다")
+    void discordClientGetsDiscordRestClient() {
         contextRunner.run(context -> {
-            SlackNotifierClient client = context.getBean(SlackNotifierClient.class);
-            RestClient expected = (RestClient) context.getBean("slackRestClient");
+            DiscordNotifierClient client = context.getBean(DiscordNotifierClient.class);
+            RestClient expected = (RestClient) context.getBean("discordRestClient");
 
-            assertThat(ReflectionTestUtils.getField(client, "slackRestClient"))
+            assertThat(ReflectionTestUtils.getField(client, "discordRestClient"))
                     .isSameAs(expected);
         });
     }

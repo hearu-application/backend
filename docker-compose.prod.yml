@@ -11,6 +11,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
+    # 기본값 10s는 graceful 종료(웹 30s + AI 큐 30s)보다 짧아 SIGKILL이 먼저 온다.
+    stop_grace_period: 40s
     restart: unless-stopped
 
   nginx:

@@ -64,6 +64,23 @@ public class AiResponseService {
         aiResponse.completeResponse(content);
     }
 
+    // AI 응답 재요청 시 이벤트 발행 전에 상태를 PENDING으로 되돌린다.
+    // 이미 COMPLETED면 기존 응답을 보존하고 불필요한 LLM 호출을 막기 위해 재요청 자체를 거부한다.
+    public void markPending(Long diaryId) {
+        AiResponse aiResponse = getAiResponseOrThrow(diaryId);
+
+        if (aiResponse.isCompleted()) {
+            log.warn("이미 완료된 AI 응답에 재요청이 들어왔습니다. diaryId={}", diaryId);
+            throw new BusinessException(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED);
+        }
+
+        // PENDING(처리 중)인 경우도 그대로 재발행한다. 큐 포화·재시작으로 유실된 작업을
+        // 사용자가 직접 되살릴 수 있는 유일한 경로이기 때문이다.
+        log.debug("AI 응답 재요청으로 상태를 PENDING으로 초기화. diaryId={}, 이전 상태={}",
+            diaryId, aiResponse.getAiResponseStatusType());
+        aiResponse.retryResponse();
+    }
+
     public void markFailed(Long diaryId) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
         aiResponse.failResponse();

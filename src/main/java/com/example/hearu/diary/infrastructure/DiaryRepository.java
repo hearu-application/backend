@@ -3,8 +3,6 @@ package com.example.hearu.diary.infrastructure;
 import com.example.hearu.diary.domain.Diary;
 import com.example.hearu.diary.dto.response.DiaryDetailResponse;
 
-import com.example.hearu.user.domain.User;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,14 +22,14 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
             select new com.example.hearu.diary.dto.response.DiaryDetailResponse(
                 d.diaryId, d.content, d.emotionType, d.createdAt, d.updatedAt)
             from Diary d
-            where d.user = :user
+            where d.user.userId = :userId
               and d.deletedAt is null
               and d.createdAt >= :start
               and d.createdAt < :end
             order by d.createdAt desc
             """)
     List<DiaryDetailResponse> findCalendarDiaries(
-            @Param("user") User user,
+            @Param("userId") Long userId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 

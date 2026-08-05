@@ -43,9 +43,19 @@ public class AiResponse extends BaseEntity {
     }
 
     public void failResponse() {
-        if (this.aiResponseStatusType == AiResponseStatusType.COMPLETED) {
+        if (isCompleted()) {
             return;
         }
         this.aiResponseStatusType = AiResponseStatusType.FAILED;
+    }
+
+    // 재요청 시 직전 시도의 FAILED 상태를 지운다. 이걸 하지 않으면 클라이언트 폴링이
+    // 재시도 직후에도 계속 FAILED를 읽어 실패로 확정한다.
+    public void retryResponse() {
+        this.aiResponseStatusType = AiResponseStatusType.PENDING;
+    }
+
+    public boolean isCompleted() {
+        return this.aiResponseStatusType == AiResponseStatusType.COMPLETED;
     }
 }
