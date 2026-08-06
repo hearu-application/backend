@@ -129,8 +129,10 @@ graph TD
 **의존 방향 규칙:**
 
 - `diary` → `ai`는 있지만 **`ai` → `diary`는 서비스 레벨에서 없다.** AI 쪽은 이벤트(`DiaryAiResponseRequestedEvent`)로
-  필요한 값을 통째로 받는다. 이벤트가 `diaryId`뿐 아니라 `content`·`emotionType`·`nickname`까지
+  필요한 값을 통째로 받는다. 이벤트가 `diaryId`뿐 아니라 `content`·`emotionType`·`nickname`·`toneType`까지
   들고 다니는 이유가 이것이다.
+- `ai` → `user`는 **`ToneType` enum 참조 하나뿐이다**(`PromptBuilder`, 이벤트 레코드). `AiResponseCaller`가
+  실행 중 `UserService`를 호출하지 않는다 — 말투 값은 이벤트 발행 시점에 확정되어 실려 온다.
 - `AiFeedbackService` → `AiResponseService` 방향이 이미 있으므로, **AI 응답 삭제가 피드백을 연쇄
   삭제하면 순환이 된다.** 그래서 soft delete 전파는 `DiaryService.deleteDiary` 한 곳이 관장한다.
 - `auth`는 `UserService`가 아니라 `UserRepository`를 직접 쓴다(로그인은 사용자 생성까지 포함하므로).
@@ -172,7 +174,7 @@ sequenceDiagram
     Note over L: AFTER_COMMIT + @Async<br/>MDC(requestId/userId) 전파됨
     DS->>L: DiaryAiResponseRequestedEvent
     L->>AC: call(event)
-    AC->>AC: PromptBuilder로 system/user 프롬프트 생성
+    AC->>AC: PromptBuilder로 system/user 프롬프트 생성<br/>(system은 toneType에 따라 말투 규칙·예시 분기)
     AC->>LLM: POST (system + user 메시지)
     LLM-->>AC: ClovaChatResponse
     AC->>AC: JSON 파싱 → "response" 필드 검증
@@ -191,6 +193,7 @@ sequenceDiagram
 | API는 AI 응답을 **기다리지 않는다** | 클라이언트는 `GET .../ai-response`를 **폴링**해 상태를 확인한다 |
 | `PENDING` 행이 **일기 저장과 같은 트랜잭션**에서 만들어진다 | 폴링이 "아직 없음"이 아니라 "처리 중"을 볼 수 있다 |
 | `MdcTaskDecorator`가 MDC를 워커로 전파한다 | 작성 요청부터 AI 완료까지 **`requestId` 하나로 추적**된다 |
+| 말투(`toneType`)는 **이벤트 발행 시점의 값**으로 굳는다 | 응답 생성 중 사용자가 설정을 바꿔도 진행 중인 응답에는 반영되지 않는다 |
 
 ### 4.2 AI 응답 상태 기계
 

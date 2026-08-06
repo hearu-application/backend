@@ -8,6 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
@@ -22,9 +24,11 @@ import com.example.hearu.ai.response.infrastructure.client.dto.ClovaChatResponse
 import com.example.hearu.ai.response.infrastructure.client.dto.Message;
 import com.example.hearu.diary.domain.EmotionType;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
+import com.example.hearu.user.domain.ToneType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 public class AiResponseCallerTest {
@@ -35,10 +39,17 @@ public class AiResponseCallerTest {
     @Mock
     NaverClovaClient naverClovaClient;
 
+    @Captor
+    ArgumentCaptor<List<Message>> messagesCaptor;
+
     AiResponseCaller aiResponseCaller;
 
-    private final DiaryAiResponseRequestedEvent event =
-        new DiaryAiResponseRequestedEvent(1L, "오늘은 좋은 하루였다", EmotionType.JOY, 1L, "용준");
+    private final DiaryAiResponseRequestedEvent event = eventWith(ToneType.HONORIFIC);
+
+    private static DiaryAiResponseRequestedEvent eventWith(ToneType toneType) {
+        return new DiaryAiResponseRequestedEvent(
+            1L, "오늘은 좋은 하루였다", EmotionType.JOY, 1L, "용준", toneType);
+    }
 
     @BeforeEach
     void setUp() {
@@ -65,6 +76,52 @@ public class AiResponseCallerTest {
             new byte[0],
             StandardCharsets.UTF_8
         );
+    }
+
+    @Nested
+    @DisplayName("프롬프트 전달")
+    class PromptWiring {
+
+        // 이 두 테스트가 없으면 systemPromptBuild에 말투를 하드코딩해도 전체 테스트가 통과한다.
+        // "설정이 프롬프트까지 도달하지 않는다"가 실제로 났던 버그이므로 그 구간을 여기서 잠근다.
+        @Test
+        @DisplayName("이벤트가 존댓말이면 시스템 프롬프트에 존댓말 규칙이 실린다")
+        void honorific_event_builds_honorific_system_prompt() {
+            String systemPrompt = systemPromptSentFor(ToneType.HONORIFIC);
+
+            assertThat(systemPrompt).contains("모든 문장을 존댓말로 끝낸다");
+            assertThat(systemPrompt).doesNotContain("문장 끝 모음 늘이기");
+        }
+
+        @Test
+        @DisplayName("이벤트가 반말이면 시스템 프롬프트에 반말 규칙이 실린다")
+        void informal_event_builds_informal_system_prompt() {
+            String systemPrompt = systemPromptSentFor(ToneType.INFORMAL);
+
+            assertThat(systemPrompt).contains("문장 끝 모음 늘이기");
+            assertThat(systemPrompt).doesNotContain("모든 문장을 존댓말로 끝낸다");
+        }
+
+        @Test
+        @DisplayName("이벤트의 닉네임이 시스템 프롬프트에 주입된다")
+        void nickname_is_injected_into_system_prompt() {
+            assertThat(systemPromptSentFor(ToneType.HONORIFIC)).contains("사용자 이름: 용준");
+        }
+
+        // LLM에 실제로 전달된 system 메시지를 꺼낸다.
+        private String systemPromptSentFor(ToneType toneType) {
+            given(naverClovaClient.getAiResponse(anyList()))
+                .willReturn(clovaResponse("{\"response\":\"응답\"}"));
+
+            aiResponseCaller.call(eventWith(toneType));
+
+            verify(naverClovaClient).getAiResponse(messagesCaptor.capture());
+            return messagesCaptor.getValue().stream()
+                .filter(message -> "system".equals(message.role()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("system 메시지가 전달되지 않았습니다"))
+                .content();
+        }
     }
 
     @Nested
