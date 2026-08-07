@@ -84,7 +84,8 @@ public class DiaryService {
                 diary.getContent(),
                 diary.getEmotionType(),
                 user.getUserId(),
-                user.getNickname()
+                user.getNickname(),
+                user.getToneType()
             )
         );
 
@@ -198,7 +199,8 @@ public class DiaryService {
                         diary.getContent(),
                         diary.getEmotionType(),
                         user.getUserId(),
-                        user.getNickname()
+                        user.getNickname(),
+                        user.getToneType()
                 )
         );
     }
