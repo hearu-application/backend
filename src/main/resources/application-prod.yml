@@ -18,6 +18,10 @@ logging:
     # 원인이 확정되면 제거한다. 이 경로의 DEBUG 로그는 LogMasker를 거치므로 원문이 남지 않는다.
     com.example.hearu.auth: debug
 
+    # 진단용. MdcLoggingFilter의 [REQ][Start]/[REQ][End]로 필터체인 진입~응답 구간을 재기 위한 것.
+    # nginx uht와 AuthService 내부 시간 사이에 설명되지 않는 구간이 있어 그 위치를 좁힌다.
+    com.example.hearu.common.logging: debug
+
     # root가 WARN이라 이미 억제되지만, 실수로 root를 낮추더라도
     # 운영 DB 쿼리와 바인딩 파라미터가 노출되지 않도록 명시적으로 차단한다.
     org.hibernate.SQL: off
