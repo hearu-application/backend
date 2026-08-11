@@ -30,6 +30,6 @@ public class AiFeedbackController {
     ) {
         aiFeedbackService.createFeedback(userId, diaryId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("피드백 등록이 완료되었습니다.", null));
+                .body(ApiResponse.success("피드백 등록이 완료되었습니다.", null, HttpStatus.CREATED));
     }
 }

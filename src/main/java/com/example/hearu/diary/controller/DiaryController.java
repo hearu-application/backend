@@ -39,7 +39,7 @@ public class DiaryController {
 
         DiaryCreateResponse response = diaryService.createDiary(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("일기 작성이 완료되었습니다.", response));
+                .body(ApiResponse.success("일기 작성이 완료되었습니다.", response, HttpStatus.CREATED));
     }
 
     @SecurityRequirement(name = "Authorization")
@@ -108,7 +108,7 @@ public class DiaryController {
         diaryService.requestAiResponse(userId, diaryId);
 
         return ResponseEntity.accepted()
-                .body(ApiResponse.success("AI 응답 요청 접수 완료", null));
+                .body(ApiResponse.success("AI 응답 요청 접수 완료", null, HttpStatus.ACCEPTED));
     }
 
     @SecurityRequirement(name = "Authorization")
