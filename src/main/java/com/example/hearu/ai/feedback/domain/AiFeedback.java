@@ -18,7 +18,7 @@ public class AiFeedback extends BaseEntity {
     @Column(name = "ai_feedback_id")
     private Long aiFeedbackId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ai_response_id", nullable = false)
     private AiResponse aiResponse;
 
