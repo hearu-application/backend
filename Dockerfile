@@ -16,13 +16,13 @@ USER appuser
 # 실사용과 무관하게 잡아둔 힙이 스왑으로 밀려나, 유휴 후 첫 요청이 이를 되읽는 비용을 냈다.
 # 자세한 측정은 docs/plan/prod-request-latency.md 참고.
 #
-# -Xlog는 진단용이며 원인 확정 후 제거한다.
+# GC 로그는 상시 유지한다. GC 문제는 사후 재구성이 불가능하다.
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport \
                        -Xms128m \
                        -Xmx320m \
                        -Duser.timezone=Asia/Seoul \
                        -Djava.security.egd=file:/dev/./urandom \
-                       -Xlog:gc,safepoint:stdout:time,level,tags"
+                       -Xlog:gc:stdout:time,level,tags"
 
 EXPOSE 8080
 
