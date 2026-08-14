@@ -70,7 +70,7 @@ public class AuthService {
                     return existing;
                 })
                 .orElseGet(() -> {
-                    // 신규 가입 시에만 email이 필수 (Apple은 최초 인증 시에만 email claim을 내려준다)
+                    // 신규 가입 시에만 email이 필수 (기존 사용자 로그인은 sub로 식별한다)
                     if (email == null) {
                         log.warn("신규 가입에 필요한 email이 없습니다. provider={}", provider);
                         throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);

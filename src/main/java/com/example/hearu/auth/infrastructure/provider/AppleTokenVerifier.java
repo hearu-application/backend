@@ -61,8 +61,6 @@ public class AppleTokenVerifier {
         }
 
         String sub = jwt.getSubject();
-        // Apple은 최초 인증 시에만 email claim을 내려주므로 재로그인 시 null일 수 있다.
-        // 신규 가입에 필요한 email 검증은 AuthService에서 수행한다.
         String email = jwt.getClaimAsString("email");
 
         // 2. 필수 claim 검증
@@ -71,7 +69,6 @@ public class AppleTokenVerifier {
             throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
         }
 
-        // Apple은 재로그인 시 email을 내려주지 않으므로, 존재 여부가 디버깅에 중요하다.
         log.debug("Apple ID Token 검증 성공. sub={}, email={}, exp={}",
                 LogMasker.sub(sub), LogMasker.email(email), jwt.getExpiresAt());
 
