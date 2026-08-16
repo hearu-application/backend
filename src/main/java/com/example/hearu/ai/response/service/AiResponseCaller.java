@@ -61,17 +61,17 @@ public class AiResponseCaller {
             );
 
             // 3. LLM 외부 API 호출
-            ClovaChatResponse clovaChatResponse = naverClovaClient.getAiResponse(messages);
-
-            // stopReason은 정상 응답에도 항상 실려오므로 DEBUG가 적절하다.
-            // (기존에는 성공 경로에서 WARN으로 남아 운영 로그에 불필요한 경고를 발생시켰다)
-            log.debug("[AI][StopReason] diaryId={}, userId={}, stopReason={}",
-                event.diaryId(), event.userId(), clovaChatResponse.result().stopReason());
+            ClovaChatResponse.Result result = naverClovaClient.getAiResponse(messages).result();
 
             // 외부 호출 자체의 소요 시간은 NaverClovaClient가, 전체 소요 시간은
             // 아래 [AI][Complete]가 기록하므로 여기서는 중복 측정하지 않는다.
-            String content = clovaChatResponse.result().message().content();
-            log.info("[AI][CALL_SUCCESS] diaryId={}, userId={}", event.diaryId(), event.userId());
+            String content = result.message().content();
+
+            // stopReason·토큰 수는 아래 파싱이 실패했을 때 원인이 "출력 잘림"인지 가르는 유일한 근거다.
+            // 그 판정을 prod에서 해야 하므로 DEBUG가 아니라 이 INFO 줄에 싣는다.
+            log.info("[AI][CALL_SUCCESS] diaryId={}, userId={}, stopReason={}, inputLength={}, outputLength={}",
+                event.diaryId(), event.userId(),
+                result.stopReason(), result.inputLength(), result.outputLength());
 
             // 4. JSON 파싱 및 response 필드 검증
             JsonNode jsonNode = objectMapper.readTree(content);

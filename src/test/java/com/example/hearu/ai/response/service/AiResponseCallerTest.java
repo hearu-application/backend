@@ -62,9 +62,13 @@ public class AiResponseCallerTest {
     }
 
     private ClovaChatResponse clovaResponse(String content) {
+        return clovaResponse(content, "stop_before", 20);
+    }
+
+    private ClovaChatResponse clovaResponse(String content, String stopReason, int outputLength) {
         return new ClovaChatResponse(
             new ClovaChatResponse.Status("20000", "OK"),
-            new ClovaChatResponse.Result(new Message("assistant", content), 10, 20, "stop_before", 1L)
+            new ClovaChatResponse.Result(new Message("assistant", content), 10, outputLength, stopReason, 1L)
         );
     }
 
@@ -196,6 +200,19 @@ public class AiResponseCallerTest {
         void missing_response_field_marks_failed() {
             given(naverClovaClient.getAiResponse(anyList()))
                 .willReturn(clovaResponse("{\"message\":\"필드 없음\"}"));
+
+            aiResponseCaller.call(event);
+
+            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
+        }
+
+        // 출력이 maxTokens에 걸려 JSON이 닫히기 전에 끝나는 케이스(운영에서 실제로 발생).
+        @Test
+        @DisplayName("응답 JSON이 잘려 있으면 FAILED로 확정한다")
+        void truncated_json_marks_failed() {
+            given(naverClovaClient.getAiResponse(anyList()))
+                .willReturn(clovaResponse("{\"response\":\"킁킁, 몽글몽글 전해진다아", "length", 100));
 
             aiResponseCaller.call(event);
 
