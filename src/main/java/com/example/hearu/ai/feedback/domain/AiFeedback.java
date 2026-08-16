@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Getter
 @Entity
 @Table(name = "ai_feedback")
@@ -18,7 +20,7 @@ public class AiFeedback extends BaseEntity {
     @Column(name = "ai_feedback_id")
     private Long aiFeedbackId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ai_response_id", nullable = false)
     private AiResponse aiResponse;
 
@@ -57,6 +59,8 @@ public class AiFeedback extends BaseEntity {
         }
 
         if (dislikeReasonType == DislikeReasonType.ETC && (customText == null || customText.isBlank())) {
+            // customText는 사용자 자유 서술이라 원문을 넣지 않는다.
+            log.warn("기타 사유 피드백에 사유 텍스트가 없습니다. dislikeReasonType={}", dislikeReasonType);
             throw new BusinessException(AiFeedbackErrorCode.REASON_TEXT_REQUIRED);
         }
 

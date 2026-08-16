@@ -49,8 +49,8 @@ paths:
 
 **로그 태그** — AI 응답 흐름은 `[AI][*]` 태그로 통일되어 있다. 정상 경로는
 
-`EventPublished` → `Start` → `PromptBuilt` → `HttpCall`(요청 시작/완료) → `StopReason` →
-`CALL_SUCCESS` → `Parsed` → `Complete`
+`EventPublished` → `Start` → `PromptBuilt` → `HttpCall`(요청 시작/완료) →
+`CALL_SUCCESS`(`stopReason`·토큰 수) → `Parsed` → `Complete`
 
 이고, 실패 계열은 다음과 같다.
 

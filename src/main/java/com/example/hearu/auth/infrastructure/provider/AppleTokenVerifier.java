@@ -53,16 +53,13 @@ public class AppleTokenVerifier {
         try {
             jwt = jwtDecoder.decode(idToken);
         } catch (Exception e) {
-            // 잘못된 토큰은 정상적으로 발생하는 케이스이므로 WARN에는 메시지만 남기고,
-            // 전체 스택트레이스는 디버깅이 필요한 dev/local(DEBUG)에서만 확인한다.
-            log.warn("Apple ID Token 검증 실패. message={}", e.getMessage());
-            log.debug("Apple ID Token 검증 실패 상세", e);
+            // 잘못된 토큰은 정상적으로 발생하는 케이스라 스택트레이스에 정보가 없다. 타입·메시지만 남긴다.
+            log.warn("Apple ID Token 검증 실패. reason={}, message={}",
+                e.getClass().getSimpleName(), e.getMessage());
             throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
         }
 
         String sub = jwt.getSubject();
-        // Apple은 최초 인증 시에만 email claim을 내려주므로 재로그인 시 null일 수 있다.
-        // 신규 가입에 필요한 email 검증은 AuthService에서 수행한다.
         String email = jwt.getClaimAsString("email");
 
         // 2. 필수 claim 검증
@@ -71,7 +68,6 @@ public class AppleTokenVerifier {
             throw new BusinessException(AuthErrorCode.MISSING_REQUIRED_CLAIMS);
         }
 
-        // Apple은 재로그인 시 email을 내려주지 않으므로, 존재 여부가 디버깅에 중요하다.
         log.debug("Apple ID Token 검증 성공. sub={}, email={}, exp={}",
                 LogMasker.sub(sub), LogMasker.email(email), jwt.getExpiresAt());
 
