@@ -102,6 +102,42 @@ public class NaverClovaClientTest {
     }
 
     @Nested
+    @DisplayName("요청 본문")
+    class RequestBody {
+
+        // 파라미터 이름이 틀리거나 빠지면 API는 400을 주지 않고 조용히 기본값을 쓴다
+        // (maxTokens 기본값 100). 컴파일에도 응답 파싱에도 걸리지 않으므로 나가는 본문을 직접 잠근다.
+        @Test
+        @DisplayName("생성 파라미터가 API 문서상 이름 그대로 실린다")
+        void sends_generation_parameters() {
+            server.expect(requestTo(COMPLETION_URL))
+                .andExpect(jsonPath("$.maxTokens").value(1000))
+                .andExpect(jsonPath("$.temperature").value(0.5))
+                .andExpect(jsonPath("$.topK").value(0))
+                .andExpect(jsonPath("$.topP").value(0.8))
+                .andExpect(jsonPath("$.repeatPenalty").value(1.1))
+                .andExpect(jsonPath("$.messages[0].role").value("user"))
+                .andExpect(jsonPath("$.messages[0].content").value("안녕"))
+                .andRespond(withSuccess("""
+                    {
+                      "status": {"code": "20000", "message": "OK"},
+                      "result": {
+                        "message": {"role": "assistant", "content": "{}"},
+                        "inputLength": 10,
+                        "outputLength": 20,
+                        "stopReason": "stop_before",
+                        "seed": 1
+                      }
+                    }
+                    """, MediaType.APPLICATION_JSON));
+
+            naverClovaClient.getAiResponse(messages);
+
+            server.verify();
+        }
+    }
+
+    @Nested
     @DisplayName("정상 응답")
     class Success {
 
