@@ -1,6 +1,7 @@
 package com.example.hearu.common.config;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +10,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import com.example.hearu.common.logging.MdcTaskDecorator;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Configuration
 @EnableAsync
 public class AsyncConfig {
@@ -30,6 +34,17 @@ public class AsyncConfig {
 
         // 위 대기의 상한. compose의 stop_grace_period가 이 값보다 커야 SIGKILL이 먼저 오지 않는다.
         executor.setAwaitTerminationSeconds(30);
+
+        // 기본 정책(AbortPolicy)은 예외만 던지고 거부 사실은 어디에도 남기지 않는다.
+        // 거부 시점을 남기되, 예외는 동일하게 던져 동작은 바꾸지 않는다.
+        executor.setRejectedExecutionHandler((task, threadPoolExecutor) -> {
+            log.error("[Async][Rejected] 스레드 풀 포화로 비동기 작업이 거부되었습니다. "
+                    + "activeCount={}, poolSize={}, queueSize={}",
+                threadPoolExecutor.getActiveCount(),
+                threadPoolExecutor.getPoolSize(),
+                threadPoolExecutor.getQueue().size());
+            throw new RejectedExecutionException("Async task rejected: thread pool saturated");
+        });
 
         executor.initialize();
         return executor;

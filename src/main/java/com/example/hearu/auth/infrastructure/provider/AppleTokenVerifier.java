@@ -53,10 +53,9 @@ public class AppleTokenVerifier {
         try {
             jwt = jwtDecoder.decode(idToken);
         } catch (Exception e) {
-            // 잘못된 토큰은 정상적으로 발생하는 케이스이므로 WARN에는 메시지만 남기고,
-            // 전체 스택트레이스는 디버깅이 필요한 dev/local(DEBUG)에서만 확인한다.
-            log.warn("Apple ID Token 검증 실패. message={}", e.getMessage());
-            log.debug("Apple ID Token 검증 실패 상세", e);
+            // 잘못된 토큰은 정상적으로 발생하는 케이스라 스택트레이스에 정보가 없다. 타입·메시지만 남긴다.
+            log.warn("Apple ID Token 검증 실패. reason={}, message={}",
+                e.getClass().getSimpleName(), e.getMessage());
             throw new BusinessException(AuthErrorCode.INVALID_ID_TOKEN);
         }
 

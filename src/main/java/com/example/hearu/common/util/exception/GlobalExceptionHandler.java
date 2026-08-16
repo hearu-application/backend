@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -147,9 +148,11 @@ public class GlobalExceptionHandler {
 
     /** 예상 못한 모든 서버 오류 */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+    public ResponseEntity<ErrorResponse> handleException(Exception e, HttpServletRequest request) {
 
-        log.error("예상치 못한 오류. 상세 메시지={}", e.getMessage(), e);
+        // 요청 로그([REQ][*])가 DEBUG라 prod에 없다. 여기에 method·uri가 없으면 어느 요청이 500이 됐는지 알 수 없다.
+        log.error("예상치 못한 오류. method={}, uri={}, 상세 메시지={}",
+            request.getMethod(), request.getRequestURI(), e.getMessage(), e);
 
         ErrorResponse response = ErrorResponse.builder()
                 .status(500)

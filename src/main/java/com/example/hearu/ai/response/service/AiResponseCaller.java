@@ -96,8 +96,8 @@ public class AiResponseCaller {
 
         } catch (ResourceAccessException | HttpServerErrorException
                  | HttpClientErrorException.TooManyRequests e) {
-            // @Retryable / @Recover 가 처리
-            log.debug("[AI][Retryable] 재시도 대상 예외 발생. diaryId={}, reason={}",
+            // @Retryable / @Recover 가 처리. 재시도로 복구되면 이 줄이 실패의 유일한 흔적이라 DEBUG면 안 된다.
+            log.warn("[AI][Retryable] 재시도 대상 예외 발생. diaryId={}, reason={}",
                 event.diaryId(), e.getClass().getSimpleName());
             throw e;
 

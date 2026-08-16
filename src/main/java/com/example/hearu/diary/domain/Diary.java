@@ -9,7 +9,9 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -47,6 +49,9 @@ public class Diary extends BaseEntity {
 
     public void validateOwner(Long userId) {
         if (!this.user.getUserId().equals(userId)) {
+            // 인가 실패는 항상 남긴다. BusinessException 처리는 DEBUG라 여기서 안 남기면 prod에 무기록이다.
+            log.warn("일기 접근 권한이 없습니다. 요청 userId={}, 소유자 userId={}, diaryId={}",
+                userId, this.user.getUserId(), this.diaryId);
             throw new BusinessException(DiaryErrorCode.DIARY_ACCESS_DENIED);
         }
     }
