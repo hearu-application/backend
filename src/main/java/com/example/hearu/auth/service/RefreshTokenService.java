@@ -48,8 +48,7 @@ public class RefreshTokenService {
         log.debug("refresh token 발급/갱신 완료. userId={}, expiresAt={}", user.getUserId(), expiresAt);
     }
 
-    @Transactional(readOnly = true)
-    protected RefreshToken getRefreshToken(Long userId) {
+    private RefreshToken getRefreshToken(Long userId) {
         return authRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.warn("refresh token을 가지고 있지 않습니다. userId={}", userId);
