@@ -167,7 +167,7 @@ public class DiaryService {
     }
 
 
-    public Diary getDiaryOrThrow(Long userId, Long diaryId) {
+    private Diary getDiaryOrThrow(Long userId, Long diaryId) {
         return diaryRepository.findByDiaryIdAndDeletedAtIsNull(diaryId)
                 .orElseThrow(() -> {
                     log.warn("일기가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
