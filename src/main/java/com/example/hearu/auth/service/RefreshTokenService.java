@@ -22,13 +22,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class RefreshTokenService {
 
     private final AuthRepository authRepository;
     private final RefreshTokenPolicy refreshTokenPolicy;
     private final JwtProvider jwtProvider;
 
-    @Transactional
     public void issueInitialToken(User user, String newRefreshToken) {
 
         LocalDateTime expiresAt = jwtProvider.getRefreshTokenExpiresAt();
@@ -56,13 +56,11 @@ public class RefreshTokenService {
                 });
     }
 
-    @Transactional
     public void deleteRefreshToken(Long userId) {
         authRepository.deleteById(userId);
         log.debug("refresh token 삭제 완료. userId={}", userId);
     }
 
-    @Transactional
     public RefreshTokenResponse getNewRefreshTokenAndAccessToken(RefreshTokenRequest request) {
 
         String inputToken = request.refreshToken();
@@ -97,7 +95,6 @@ public class RefreshTokenService {
     // RefreshTokenCleanupScheduler가 담당한다. 재시도를 이 메서드에 함께 두면 트랜잭션
     // 어드바이스와 순서가 모호해져, 롤백된 트랜잭션 안에서 재시도가 도는 위험이 있다.
     // 여기서는 트랜잭션 경계만 책임진다. (AiResponseCaller와 동일한 패턴)
-    @Transactional
     public void deleteExpiredRefreshTokens() {
         LocalDateTime now = LocalDateTime.now();
         int deletedCount = authRepository.deleteByExpiresAtBefore(now);
