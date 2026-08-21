@@ -51,9 +51,26 @@ public class PromptBuilderTest {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
                 assertThat(prompt).contains("필수 의성어: 뚱땅뚱땅, 몽글몽글, 킁킁");
+                // 의성어 하한만 있으면 무거운 일기에도 2개가 박혀 감정과 부딪힌다
+                assertThat(prompt).contains("무거운 맥락에서는 1개 이하로 줄인다");
                 assertThat(prompt).contains("민감한 상황에서는 느낌표를 사용하지 않는다");
                 assertThat(prompt).contains("전문 기관에 도움 요청으로 유도해");
                 assertThat(prompt).contains("400자 이내");
+            }
+        }
+
+        @Test
+        @DisplayName("공감 지침은 두 말투 모두에서 구체적 감정을 추측형으로 짚게 한다")
+        void empathy_policy_in_both_tones() {
+            for (ToneType toneType : ToneType.values()) {
+                String prompt = promptBuilder.systemPromptBuild("용준", toneType);
+
+                // 어떤 일기에도 붙는 템플릿 공감 방지
+                assertThat(prompt).contains("구체적인 감정을 추측해 짚는다");
+                // 추측을 단정으로 내놓으면 빗나갔을 때 더 상처가 된다
+                assertThat(prompt).contains("단정하지 말고 추측형으로 여지를 남긴다");
+                // 따라하기식 공감 방지
+                assertThat(prompt).contains("그대로 되풀이하지 않는다");
             }
         }
 
@@ -71,8 +88,8 @@ public class PromptBuilderTest {
                 // 행동 제안이 허용되는 좁은 조건이 함께 있어야 무거운 실패에 제안이 붙지 않는다
                 assertThat(prompt).contains("가볍게 축 처지는 날에만");
                 assertThat(prompt).contains("일상 제안을 덧붙이지 않는다");
-                // 따라하기식 공감 방지
-                assertThat(prompt).contains("그대로 되풀이하지 않는다");
+                // 감정 태그는 사용자가 고른 값이라 본문과 어긋날 수 있다
+                assertThat(prompt).contains("감정 분기는 태그보다 본문을 우선한다");
             }
         }
 
