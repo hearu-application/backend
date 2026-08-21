@@ -163,31 +163,6 @@ public class DiaryServiceTest {
     }
 
     @Nested
-    @DisplayName("일기 조회")
-    class GetDiaryOrThrow {
-
-        @Test
-        @DisplayName("일기가 없는 경우, 예외 처리")
-        void diary_not_found() {
-            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> diaryService.getDiaryOrThrow(1L, 1L))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(DiaryErrorCode.DIARY_NOT_FOUND.getMessage());
-        }
-
-        @Test
-        @DisplayName("성공")
-        void success() {
-            given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
-
-            Diary result = diaryService.getDiaryOrThrow(1L, 1L);
-
-            assertThat(result).isEqualTo(diary);
-        }
-    }
-
-    @Nested
     @DisplayName("일기 상세 조회")
     class GetDiaryDetail {
 

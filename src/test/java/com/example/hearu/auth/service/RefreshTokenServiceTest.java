@@ -105,35 +105,6 @@ public class RefreshTokenServiceTest {
     }
 
     @Nested
-    @DisplayName("refresh token 반환")
-    class GetRefreshToken {
-
-        @Test
-        @DisplayName("refresh token 없는 경우, 예외 처리")
-        void throw_when_token_not_found() {
-            // given
-            given(authRepository.findById(USER_ID)).willReturn(Optional.empty());
-
-            // when & then
-            assertInvalidRefreshToken(() -> refreshTokenService.getRefreshToken(USER_ID));
-        }
-
-        @Test
-        @DisplayName("refresh token 있는 경우 반환")
-        void return_when_token_found() {
-            // given
-            RefreshToken refreshToken = RefreshToken.create(USER_ID, "refresh_token", FIXED_EXPIRES_AT);
-            given(authRepository.findById(USER_ID)).willReturn(Optional.of(refreshToken));
-
-            // when
-            RefreshToken result = refreshTokenService.getRefreshToken(USER_ID);
-
-            // then
-            assertThat(result.getToken()).isEqualTo(refreshToken.getToken());
-        }
-    }
-
-    @Nested
     @DisplayName("refresh token 삭제")
     class DeleteRefreshToken {
 
@@ -166,6 +137,26 @@ public class RefreshTokenServiceTest {
 
             // then
             verify(jwtProvider, never()).parseClaims(any());
+            verify(jwtProvider, never()).createAccessToken(any(Long.class));
+            verify(jwtProvider, never()).createRefreshToken(any(Long.class));
+        }
+
+        @Test
+        @DisplayName("저장된 refresh token이 없는 경우, 예외 처리")
+        void throw_when_stored_token_not_found() {
+            // given
+            RefreshTokenRequest request = new RefreshTokenRequest("refresh_token");
+            Claims claims = mock(Claims.class);
+
+            given(refreshTokenPolicy.validateAndGetClaims(request.refreshToken())).willReturn(claims);
+            given(jwtProvider.extractUserId(claims)).willReturn(USER_ID);
+            given(authRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+            // when
+            assertInvalidRefreshToken(() -> refreshTokenService.getNewRefreshTokenAndAccessToken(request));
+
+            // then
+            verify(refreshTokenPolicy, never()).validateStoredTokenMatch(any(), any(), any());
             verify(jwtProvider, never()).createAccessToken(any(Long.class));
             verify(jwtProvider, never()).createRefreshToken(any(Long.class));
         }

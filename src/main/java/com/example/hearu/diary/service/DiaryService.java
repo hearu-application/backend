@@ -29,6 +29,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class DiaryService {
 
     private final DiaryRepository diaryRepository;
@@ -39,7 +40,6 @@ public class DiaryService {
 
     private static final int DIARY_DAILY_LIMIT = 10;
 
-    @Transactional
     public DiaryCreateResponse createDiary(Long userId, DiaryCreateRequest request) {
 
         log.debug("일기 생성 시작. userId={}, emotionType={}, content={}",
@@ -150,7 +150,6 @@ public class DiaryService {
         return diaries;
     }
 
-    @Transactional
     public void deleteDiary(Long userId, Long diaryId) {
         // 1. 일기 조회
         Diary diary = getDiaryOrThrow(userId, diaryId);
@@ -168,7 +167,7 @@ public class DiaryService {
     }
 
 
-    public Diary getDiaryOrThrow(Long userId, Long diaryId) {
+    private Diary getDiaryOrThrow(Long userId, Long diaryId) {
         return diaryRepository.findByDiaryIdAndDeletedAtIsNull(diaryId)
                 .orElseThrow(() -> {
                     log.warn("일기가 존재하지 않습니다. userId={}, diaryId={}", userId, diaryId);
@@ -176,7 +175,6 @@ public class DiaryService {
                 });
     }
 
-    @Transactional
     public void requestAiResponse(Long userId, Long diaryId) {
         // 1. User 엔티티 조회
         User user = userService.getUserOrThrow(userId);
