@@ -52,8 +52,8 @@ public class PromptBuilderTest {
 
                 assertThat(prompt).contains("필수 의성어: 뚱땅뚱땅, 몽글몽글, 킁킁");
                 // 의성어 하한만 있으면 무거운 일기에도 2개가 박혀 감정과 부딪힌다
-                assertThat(prompt).contains("무거운 맥락에서는 1개 이하로 줄인다");
-                assertThat(prompt).contains("민감한 상황에서는 느낌표를 사용하지 않는다");
+                assertThat(prompt).contains("무거운 맥락(슬픔·분노·민감한 상황)이나 차분한 맥락(평온함·무료함 등 가라앉은 결)에서는 1개 이하로 줄인다");
+                assertThat(prompt).contains("민감한 상황(자해·자살 등)이나 차분한 맥락(평온·무료)에서는 느낌표를 자제한다");
                 assertThat(prompt).contains("전문 기관에 도움 요청으로 유도해");
                 assertThat(prompt).contains("400자 이내");
             }
