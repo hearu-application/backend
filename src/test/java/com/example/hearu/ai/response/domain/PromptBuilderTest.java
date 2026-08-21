@@ -55,6 +55,8 @@ public class PromptBuilderTest {
                 assertThat(prompt).contains("무거운 맥락(슬픔·분노·민감한 상황)이나 차분한 맥락(평온함·무료함 등 가라앉은 결)에서는 1개 이하로 줄인다");
                 assertThat(prompt).contains("민감한 상황(자해·자살 등)이나 차분한 맥락(평온·무료)에서는 느낌표를 자제한다");
                 assertThat(prompt).contains("전문 기관에 도움 요청으로 유도해");
+                // 금지가 빠지면 모델이 상담 번호를 지어낸다(실호출에서 1393·1388이 관측됐다)
+                assertThat(prompt).contains("상담 전화번호와 특정 기관 이름은 절대 쓰지 않는다");
                 assertThat(prompt).contains("400자 이내");
             }
         }
