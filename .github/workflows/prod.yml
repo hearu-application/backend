@@ -154,7 +154,7 @@ jobs:
             cat > .env << EOF
             # Docker Image
             DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            DOCKER_TAG=prod
+            DOCKER_TAG=prod-${{ github.sha }}
 
             # Database
             DB_URL=${{ secrets.PROD_DB_URL }}
@@ -189,7 +189,15 @@ jobs:
 
             # 배포
             docker compose -f docker-compose.prod.yml pull app
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans 
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # 배포 검증 — 실행 중인 이미지가 실제로 이번 커밋인지 확인
+            DEPLOYED_SHA=$(docker inspect hearu-prod --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+            if [ "$DEPLOYED_SHA" != "${{ github.sha }}" ]; then
+              echo "배포 검증 실패: 실행 중인 이미지 SHA($DEPLOYED_SHA) != 이번 커밋(${{ github.sha }})" >&2
+              exit 1
+            fi
+
             docker compose -f docker-compose.prod.yml exec nginx nginx -s reload || true
 
             # 정리
