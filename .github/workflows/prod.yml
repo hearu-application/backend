@@ -60,8 +60,11 @@ jobs:
       contents: read
       packages: write
 
+    env:
+      IMAGE_TAG: prod-${{ github.sha }}
+
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tag: ${{ env.IMAGE_TAG }}
 
     steps:
       - name: Checkout
@@ -90,7 +93,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=prod
-            type=sha,prefix=prod-,format=long
+            type=raw,value=${{ env.IMAGE_TAG }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -154,7 +157,7 @@ jobs:
             cat > .env << EOF
             # Docker Image
             DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            DOCKER_TAG=prod-${{ github.sha }}
+            DOCKER_TAG=${{ needs.docker.outputs.image-tag }}
 
             # Database
             DB_URL=${{ secrets.PROD_DB_URL }}
