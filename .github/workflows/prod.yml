@@ -113,6 +113,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: docker
     environment: production
+    permissions:
+      contents: read
+      packages: read
 
     steps:
       - name: Checkout
@@ -130,22 +133,28 @@ jobs:
 
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.PROD_SERVER_HOST }}
           username: ${{ secrets.PROD_SERVER_USERNAME }}
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
           port: ${{ secrets.PROD_SERVER_PORT }}
+          envs: GHCR_TOKEN,GHCR_ACTOR
+          script_stop: true
           script: |
+            set -euo pipefail
             cd ~/hearu
 
-            # GHCR 로그인
-            echo ${{ secrets.GHCR_PAT }} | docker login ghcr.io -u hearu-application --password-stdin
+            # GHCR 로그인 (워크플로 실행 중에만 유효한 GITHUB_TOKEN 사용 — PAT 불필요, 만료 관리 대상 아님)
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_ACTOR" --password-stdin
 
             # .env 생성
             cat > .env << EOF
             # Docker Image
             DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-            DOCKER_TAG=prod
+            DOCKER_TAG=prod-${{ github.sha }}
 
             # Database
             DB_URL=${{ secrets.PROD_DB_URL }}
@@ -180,7 +189,15 @@ jobs:
 
             # 배포
             docker compose -f docker-compose.prod.yml pull app
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans 
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # 배포 검증 — 실행 중인 이미지가 실제로 이번 커밋인지 확인
+            DEPLOYED_SHA=$(docker inspect hearu-prod --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+            if [ "$DEPLOYED_SHA" != "${{ github.sha }}" ]; then
+              echo "배포 검증 실패: 실행 중인 이미지 SHA($DEPLOYED_SHA) != 이번 커밋(${{ github.sha }})" >&2
+              exit 1
+            fi
+
             docker compose -f docker-compose.prod.yml exec nginx nginx -s reload || true
 
             # 정리
@@ -188,7 +205,11 @@ jobs:
 
             # 헬스체크
             for i in $(seq 1 12); do
-              curl -sf https://hearu.p-e.kr/actuator/health && break
-              [ $i -eq 12 ] && exit 1
+              if curl -sf https://hearu.p-e.kr/actuator/health; then
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                exit 1
+              fi
               sleep 10
             done
