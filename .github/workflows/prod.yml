@@ -142,7 +142,9 @@ jobs:
           key: ${{ secrets.PROD_SERVER_SSH_KEY }}
           port: ${{ secrets.PROD_SERVER_PORT }}
           envs: GHCR_TOKEN,GHCR_ACTOR
+          script_stop: true
           script: |
+            set -euo pipefail
             cd ~/hearu
 
             # GHCR 로그인 (워크플로 실행 중에만 유효한 GITHUB_TOKEN 사용 — PAT 불필요, 만료 관리 대상 아님)
@@ -195,7 +197,11 @@ jobs:
 
             # 헬스체크
             for i in $(seq 1 12); do
-              curl -sf https://hearu.p-e.kr/actuator/health && break
-              [ $i -eq 12 ] && exit 1
+              if curl -sf https://hearu.p-e.kr/actuator/health; then
+                break
+              fi
+              if [ "$i" -eq 12 ]; then
+                exit 1
+              fi
               sleep 10
             done
