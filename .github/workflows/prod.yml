@@ -90,7 +90,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=prod
-            type=sha,prefix=prod-
+            type=sha,prefix=prod-,format=long
 
       - name: Build and push
         uses: docker/build-push-action@v5
