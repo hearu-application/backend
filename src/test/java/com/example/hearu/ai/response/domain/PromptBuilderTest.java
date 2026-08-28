@@ -52,9 +52,13 @@ public class PromptBuilderTest {
 
                 assertThat(prompt).contains("필수 의성어: 뚱땅뚱땅, 몽글몽글, 킁킁");
                 // 의성어 하한만 있으면 무거운 일기에도 2개가 박혀 감정과 부딪힌다
-                assertThat(prompt).contains("무거운 맥락(슬픔·분노·민감한 상황)이나 차분한 맥락(평온함·무료함 등 가라앉은 결)에서는 1개 이하로 줄인다");
+                assertThat(prompt).contains("반응성 추임새인 킁킁만 1개 이하로 쓴다");
+                // 의성어가 안내·경고 문장 한복판에 끼어들면 위기 대응 문장의 무게가 흐트러진다
+                assertThat(prompt).contains("안내·경고·지시 문장 한복판이나 맥락과 무관한 자리에 끼워 넣지 않는다");
                 assertThat(prompt).contains("민감한 상황(자해·자살 등)이나 차분한 맥락(평온·무료)에서는 느낌표를 자제한다");
                 assertThat(prompt).contains("전문 기관에 도움 요청으로 유도해");
+                // 겉보기 후련함(소지품 정리·작별 인사)도 위기 신호로 보지 않으면 우회형 위기를 놓친다
+                assertThat(prompt).contains("표면적 편안함을 미화하지 말고 동일하게 대응한다");
                 // 금지가 빠지면 모델이 상담 번호를 지어낸다(실호출에서 1393·1388이 관측됐다)
                 assertThat(prompt).contains("상담 전화번호와 특정 기관 이름은 절대 쓰지 않는다");
                 assertThat(prompt).contains("400자 이내");
@@ -67,11 +71,9 @@ public class PromptBuilderTest {
             for (ToneType toneType : ToneType.values()) {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
-                // 어떤 일기에도 붙는 템플릿 공감 방지
                 assertThat(prompt).contains("구체적인 감정을 추측해 짚는다");
                 // 추측을 단정으로 내놓으면 빗나갔을 때 더 상처가 된다
                 assertThat(prompt).contains("단정하지 말고 추측형으로 여지를 남긴다");
-                // 따라하기식 공감 방지
                 assertThat(prompt).contains("그대로 되풀이하지 않는다");
             }
         }
@@ -82,9 +84,7 @@ public class PromptBuilderTest {
             for (ToneType toneType : ToneType.values()) {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
-                // 매 응답이 질문·제안으로 끝나는 것을 막는 상위 지침
                 assertThat(prompt).contains("매 응답을 질문이나 제안으로 끝내지 않는다");
-                // 가라앉은 갈래는 제안이 아니라 곁에 있어주는 마무리가 기본
                 assertThat(prompt).contains("'슬픔'·'분노'");
                 assertThat(prompt).contains("제안·질문 없이 곁에 있어주며 끝낸다");
                 // 행동 제안이 허용되는 좁은 조건이 함께 있어야 무거운 실패에 제안이 붙지 않는다
