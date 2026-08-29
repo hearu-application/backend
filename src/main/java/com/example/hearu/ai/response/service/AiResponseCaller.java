@@ -12,8 +12,8 @@ import org.springframework.web.client.ResourceAccessException;
 
 import com.example.hearu.ai.response.domain.PromptBuilder;
 import com.example.hearu.common.logging.LogMasker;
-import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
-import com.example.hearu.ai.response.infrastructure.client.dto.ClovaChatResponse;
+import com.example.hearu.ai.response.infrastructure.client.OpenAiClient;
+import com.example.hearu.ai.response.infrastructure.client.dto.OpenAiChatResponse;
 import com.example.hearu.ai.response.infrastructure.client.dto.Message;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AiResponseCaller {
 
     private final AiResponseService aiResponseService;
-    private final NaverClovaClient naverClovaClient;
+    private final OpenAiClient openAiClient;
     private final PromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
 
@@ -61,17 +61,29 @@ public class AiResponseCaller {
             );
 
             // 3. LLM 외부 API 호출
-            ClovaChatResponse.Result result = naverClovaClient.getAiResponse(messages).result();
+            OpenAiChatResponse apiResponse = openAiClient.getAiResponse(messages);
+            OpenAiChatResponse.Choice choice = apiResponse.choices().get(0);
+            OpenAiChatResponse.Usage usage = apiResponse.usage();
 
-            // 외부 호출 자체의 소요 시간은 NaverClovaClient가, 전체 소요 시간은
+            // 외부 호출 자체의 소요 시간은 OpenAiClient가, 전체 소요 시간은
             // 아래 [AI][Complete]가 기록하므로 여기서는 중복 측정하지 않는다.
-            String content = result.message().content();
+            String content = choice.message().content();
 
-            // stopReason·토큰 수는 아래 파싱이 실패했을 때 원인이 "출력 잘림"인지 가르는 유일한 근거다.
-            // 그 판정을 prod에서 해야 하므로 DEBUG가 아니라 이 INFO 줄에 싣는다.
-            log.info("[AI][CALL_SUCCESS] diaryId={}, userId={}, stopReason={}, inputLength={}, outputLength={}",
+            if (content == null) {
+                // reasoning 모델은 안전 정책 등으로 본문 대신 refusal을 채울 수 있다 — Clova엔 없던 실패 모드.
+                throw new IllegalStateException(
+                    "AI가 응답 생성을 거부했습니다. diaryId=" + event.diaryId()
+                        + ", refusal=" + choice.message().refusal()
+                );
+            }
+
+            Integer reasoningTokens = usage.completionTokensDetails() == null
+                ? null : usage.completionTokensDetails().reasoningTokens();
+
+            // finishReason·토큰 수는 파싱 실패 시 원인이 "출력 잘림"인지 가르는 유일한 근거라 INFO로 남긴다.
+            log.info("[AI][CALL_SUCCESS] diaryId={}, userId={}, finishReason={}, promptTokens={}, completionTokens={}, reasoningTokens={}",
                 event.diaryId(), event.userId(),
-                result.stopReason(), result.inputLength(), result.outputLength());
+                choice.finishReason(), usage.promptTokens(), usage.completionTokens(), reasoningTokens);
 
             // 4. JSON 파싱 및 response 필드 검증
             JsonNode jsonNode = objectMapper.readTree(content);

@@ -174,9 +174,9 @@ jobs:
             KAKAO_REST_API_KEY=${{ secrets.PROD_KAKAO_CLIENT_ID }}
             APPLE_CLIENT_IDS=${{ secrets.PROD_APPLE_CLIENT_IDS }}
 
-            # Naver Clova
-            LLM_API_KEY=${{ secrets.PROD_CLOVA_API_KEY }}
-            LLM_COMPLETION_URL=${{ secrets.PROD_CLOVA_COMPLETION_URL }}
+            # OpenAI (GPT-5.6 Luna)
+            LLM_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
+            LLM_COMPLETION_URL=${{ secrets.PROD_OPENAI_COMPLETION_URL }}
 
             # Discord
             DISCORD_WEBHOOK_URL=${{ secrets.PROD_DISCORD_WEBHOOK_URL }}

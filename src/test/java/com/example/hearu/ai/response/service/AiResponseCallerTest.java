@@ -19,8 +19,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import com.example.hearu.ai.response.domain.PromptBuilder;
-import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
-import com.example.hearu.ai.response.infrastructure.client.dto.ClovaChatResponse;
+import com.example.hearu.ai.response.infrastructure.client.OpenAiClient;
+import com.example.hearu.ai.response.infrastructure.client.dto.OpenAiChatResponse;
 import com.example.hearu.ai.response.infrastructure.client.dto.Message;
 import com.example.hearu.diary.domain.EmotionType;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
@@ -37,7 +37,7 @@ public class AiResponseCallerTest {
     AiResponseService aiResponseService;
 
     @Mock
-    NaverClovaClient naverClovaClient;
+    OpenAiClient openAiClient;
 
     @Captor
     ArgumentCaptor<List<Message>> messagesCaptor;
@@ -55,20 +55,33 @@ public class AiResponseCallerTest {
     void setUp() {
         aiResponseCaller = new AiResponseCaller(
             aiResponseService,
-            naverClovaClient,
+            openAiClient,
             new PromptBuilder(),
             new ObjectMapper()
         );
     }
 
-    private ClovaChatResponse clovaResponse(String content) {
-        return clovaResponse(content, "stop_before", 20);
+    private OpenAiChatResponse openAiResponse(String content) {
+        return openAiResponse(content, "stop", 20);
     }
 
-    private ClovaChatResponse clovaResponse(String content, String stopReason, int outputLength) {
-        return new ClovaChatResponse(
-            new ClovaChatResponse.Status("20000", "OK"),
-            new ClovaChatResponse.Result(new Message("assistant", content), 10, outputLength, stopReason, 1L)
+    private OpenAiChatResponse openAiResponse(String content, String finishReason, int completionTokens) {
+        return new OpenAiChatResponse(
+            List.of(new OpenAiChatResponse.Choice(
+                new OpenAiChatResponse.ResponseMessage("assistant", content, null),
+                finishReason
+            )),
+            new OpenAiChatResponse.Usage(10, completionTokens, null)
+        );
+    }
+
+    private OpenAiChatResponse refusalResponse(String refusal) {
+        return new OpenAiChatResponse(
+            List.of(new OpenAiChatResponse.Choice(
+                new OpenAiChatResponse.ResponseMessage("assistant", null, refusal),
+                "stop"
+            )),
+            new OpenAiChatResponse.Usage(10, 5, null)
         );
     }
 
@@ -114,12 +127,12 @@ public class AiResponseCallerTest {
 
         // LLM에 실제로 전달된 system 메시지를 꺼낸다.
         private String systemPromptSentFor(ToneType toneType) {
-            given(naverClovaClient.getAiResponse(anyList()))
-                .willReturn(clovaResponse("{\"response\":\"응답\"}"));
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(openAiResponse("{\"response\":\"응답\"}"));
 
             aiResponseCaller.call(eventWith(toneType));
 
-            verify(naverClovaClient).getAiResponse(messagesCaptor.capture());
+            verify(openAiClient).getAiResponse(messagesCaptor.capture());
             return messagesCaptor.getValue().stream()
                 .filter(message -> "system".equals(message.role()))
                 .findFirst()
@@ -135,7 +148,7 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("429는 다시 던져 @Retryable에 맡기고 FAILED로 확정하지 않는다")
         void too_many_requests_is_rethrown() {
-            given(naverClovaClient.getAiResponse(anyList()))
+            given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.TOO_MANY_REQUESTS));
 
             assertThatThrownBy(() -> aiResponseCaller.call(event))
@@ -147,7 +160,7 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("5xx는 다시 던진다")
         void server_error_is_rethrown() {
-            given(naverClovaClient.getAiResponse(anyList()))
+            given(openAiClient.getAiResponse(anyList()))
                 .willThrow(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR));
 
             assertThatThrownBy(() -> aiResponseCaller.call(event))
@@ -159,7 +172,7 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("네트워크 오류는 다시 던진다")
         void network_error_is_rethrown() {
-            given(naverClovaClient.getAiResponse(anyList()))
+            given(openAiClient.getAiResponse(anyList()))
                 .willThrow(new ResourceAccessException("timeout"));
 
             assertThatThrownBy(() -> aiResponseCaller.call(event))
@@ -176,7 +189,7 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("400은 즉시 FAILED로 확정한다")
         void bad_request_marks_failed() {
-            given(naverClovaClient.getAiResponse(anyList()))
+            given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.BAD_REQUEST));
 
             aiResponseCaller.call(event);
@@ -187,7 +200,7 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("401은 즉시 FAILED로 확정한다")
         void unauthorized_marks_failed() {
-            given(naverClovaClient.getAiResponse(anyList()))
+            given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.UNAUTHORIZED));
 
             aiResponseCaller.call(event);
@@ -198,8 +211,8 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("응답에 response 필드가 없으면 FAILED로 확정한다")
         void missing_response_field_marks_failed() {
-            given(naverClovaClient.getAiResponse(anyList()))
-                .willReturn(clovaResponse("{\"message\":\"필드 없음\"}"));
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(openAiResponse("{\"message\":\"필드 없음\"}"));
 
             aiResponseCaller.call(event);
 
@@ -207,12 +220,25 @@ public class AiResponseCallerTest {
             verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
         }
 
-        // 출력이 maxTokens에 걸려 JSON이 닫히기 전에 끝나는 케이스(운영에서 실제로 발생).
+        // 출력이 max_completion_tokens에 걸려 JSON이 닫히기 전에 끝나는 케이스(운영에서 실제로 발생).
         @Test
         @DisplayName("응답 JSON이 잘려 있으면 FAILED로 확정한다")
         void truncated_json_marks_failed() {
-            given(naverClovaClient.getAiResponse(anyList()))
-                .willReturn(clovaResponse("{\"response\":\"킁킁, 몽글몽글 전해진다아", "length", 100));
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(openAiResponse("{\"response\":\"킁킁, 몽글몽글 전해진다아", "length", 100));
+
+            aiResponseCaller.call(event);
+
+            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
+        }
+
+        // Clova에는 없던 실패 모드. reasoning 모델이 안전 정책 등으로 본문 대신 refusal을 채우는 경우.
+        @Test
+        @DisplayName("refusal 응답(content=null)은 FAILED로 확정한다")
+        void refusal_marks_failed() {
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(refusalResponse("정책 위반"));
 
             aiResponseCaller.call(event);
 
@@ -228,8 +254,8 @@ public class AiResponseCallerTest {
         @Test
         @DisplayName("response 필드를 파싱해 저장한다")
         void success() {
-            given(naverClovaClient.getAiResponse(anyList()))
-                .willReturn(clovaResponse("{\"response\":\"좋은 하루였구나아~\"}"));
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(openAiResponse("{\"response\":\"좋은 하루였구나아~\"}"));
 
             aiResponseCaller.call(event);
 

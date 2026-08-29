@@ -5,7 +5,7 @@
 **재배포할 때마다, 그 순간 처리 중이던 AI 응답이 유실된다.**
 
 일기 저장은 `ai_response` 행을 `PENDING`으로 먼저 만든 뒤,
-`DiaryAiResponseRequestedEvent`를 `AFTER_COMMIT` + `@Async`로 처리해 Clova를 호출한다.
+`DiaryAiResponseRequestedEvent`를 `AFTER_COMMIT` + `@Async`로 처리해 LLM(OpenAI)을 호출한다.
 이 비동기 작업이 사라지면 그 행은 `COMPLETED`도 `FAILED`도 되지 못한 채 영구히 `PENDING`으로 남는다.
 
 사용자에게는 **무한 로딩**이다. 실패 표시가 없으니 재시도 버튼조차 뜨지 않는다.

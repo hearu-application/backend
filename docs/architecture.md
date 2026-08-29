@@ -21,14 +21,14 @@ graph LR
     end
 
     DB[(MySQL)]
-    Clova[Naver Clova<br/>LLM]
+    OpenAI[OpenAI GPT-5.6 Luna<br/>LLM]
     OAuth[Google / Kakao / Apple<br/>JWKS · 토큰 검증]
     Discord[Discord Webhook]
 
     App -->|JWT| API
     API --> DB
     API -.이벤트.-> Async
-    Async --> Clova
+    Async --> OpenAI
     Async --> DB
     Sched --> DB
     Sched -->|실패 시| Discord
@@ -40,7 +40,7 @@ graph LR
 
 | 대상 | 클라이언트 | connect / read |
 |---|---|---|
-| Naver Clova | `aiRestClient` (`RestClientConfig`) | 3s / 6s |
+| OpenAI GPT-5.6 Luna | `aiRestClient` (`RestClientConfig`) | 3s / 20s |
 | Discord | `discordRestClient` (`RestClientConfig`) | 3s / 5s |
 | OAuth JWKS | `JwksRestTemplateFactory` | 설정 참조 |
 
@@ -153,7 +153,7 @@ sequenceDiagram
     participant DB as MySQL
     participant L as EventListener<br/>(Async-N)
     participant AC as AiResponseCaller
-    participant LLM as Naver Clova
+    participant LLM as OpenAI GPT-5.6 Luna
 
     C->>DC: POST /api/v1/diaries
     activate DS
@@ -176,7 +176,7 @@ sequenceDiagram
     L->>AC: call(event)
     AC->>AC: PromptBuilder로 system/user 프롬프트 생성<br/>(system은 toneType에 따라 말투 규칙·예시 분기)
     AC->>LLM: POST (system + user 메시지)
-    LLM-->>AC: ClovaChatResponse
+    LLM-->>AC: OpenAiChatResponse
     AC->>AC: JSON 파싱 → "response" 필드 검증
     AC->>AS: markCompletedAndSaveResponse(diaryId, response)
     AS->>DB: status=COMPLETED, content 저장

@@ -22,7 +22,7 @@ Spring Boot 3.5.7 (Java 21) 일기 앱 + AI 캐릭터. 도메인 기반 계층�
 
 **핵심 패턴:**
 - **이벤트 비동기** — `DiaryService`가 일기 생성 후 `DiaryAiResponseRequestedEvent` 발행 →
-  `DiaryAiResponseRequestedEventListener`가 Naver Clova LLM을 비동기 호출
+  `DiaryAiResponseRequestedEventListener`가 OpenAI GPT-5.6 Luna LLM을 비동기 호출
 - **소프트 삭제** — 도메인 엔티티가 `BaseEntity`(`deletedAt`) 상속, 조회는 `deletedAtIsNull()`로 필터
 - **정책 객체** — `RefreshTokenPolicy`(토큰 규칙), `OauthProviderFactory`(Google/Kakao/Apple 선택)
 - **응답 래퍼** — 본문이 있는 응답은 `ApiResponse.success(...)`로 감싼다
@@ -119,7 +119,7 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 |---|---|
 | Auth | Spring Security + JWT (jjwt 0.11.5) + Google/Kakao/Apple OAuth2 |
 | Database | MySQL + Spring Data JPA (MySQLDialect), 스키마는 Flyway |
-| AI | Naver Clova API (`NaverClovaClient`) |
+| AI | OpenAI GPT-5.6 Luna (`OpenAiClient`) |
 | Notifications | Discord webhook (`DiscordNotifierClient`) |
 | Scheduling | `@Scheduled` cron — refresh token 정리 (`RefreshTokenCleanupScheduler`) |
 | Docs | SpringDoc OpenAPI (Swagger UI) |
@@ -138,5 +138,6 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | `GOOGLE_CLIENT_ID` | Google OAuth. iOS/Android 모두 웹 클라이언트 ID를 사용 |
 | `KAKAO_REST_API_KEY` | Kakao OAuth |
 | `APPLE_CLIENT_IDS` | Apple OAuth. 콤마 구분 (iOS Bundle ID + Android Service ID) |
-| `LLM_COMPLETION_URL`, `LLM_API_KEY` | Naver Clova |
+| `LLM_COMPLETION_URL`, `LLM_API_KEY` | OpenAI (GPT-5.6 Luna) |
+| `LLM_MODEL`, `LLM_REASONING_EFFORT`, `LLM_MAX_COMPLETION_TOKENS` | OpenAI 요청 파라미터. 기본값 있어 미지정 시에도 기동됨(`gpt-5.6-luna` / `medium` / `1500`) |
 | `DISCORD_WEBHOOK_URL` | 장애 알림 |
