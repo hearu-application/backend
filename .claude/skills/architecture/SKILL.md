@@ -18,7 +18,7 @@ POST /api/v1/diaries
       → publishEvent(DiaryAiResponseRequestedEvent)
   → 커밋 → 즉시 응답 (AI를 기다리지 않는다)
   ⇢ AFTER_COMMIT + @Async → AiResponseCaller.call()
-      PromptBuilder → NaverClovaClient → JSON의 "response" 필드 파싱
+      PromptBuilder → OpenAiClient → JSON의 "response" 필드 파싱
       → markCompletedAndSaveResponse
 클라이언트는 GET /api/v1/diaries/{id}/ai-response 를 폴링한다.
 ```

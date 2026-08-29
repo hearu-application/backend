@@ -1,6 +1,6 @@
 package com.example.hearu.common.client.discord;
 
-import com.example.hearu.ai.response.infrastructure.client.NaverClovaClient;
+import com.example.hearu.ai.response.infrastructure.client.OpenAiClient;
 import com.example.hearu.common.config.RestClientConfig;
 
 import org.junit.jupiter.api.DisplayName;
@@ -22,11 +22,12 @@ class DiscordNotifierClientWiringTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(RestClientConfig.class)
             .withBean(DiscordNotifierClient.class)
-            .withBean(NaverClovaClient.class)
+            .withBean(OpenAiClient.class)
             .withPropertyValues(
                     "discord.webhook.url=http://localhost/webhook",
                     "llm.completion-url=http://localhost/llm",
-                    "llm.api-key=test-key"
+                    "llm.api-key=test-key",
+                    "llm.model=gpt-5.6-luna"
             );
 
     @Test
@@ -48,10 +49,10 @@ class DiscordNotifierClientWiringTest {
     }
 
     @Test
-    @DisplayName("NaverClovaClient에 aiRestClient 빈이 주입된다")
-    void clovaClientGetsAiRestClient() {
+    @DisplayName("OpenAiClient에 aiRestClient 빈이 주입된다")
+    void openAiClientGetsAiRestClient() {
         contextRunner.run(context -> {
-            NaverClovaClient client = context.getBean(NaverClovaClient.class);
+            OpenAiClient client = context.getBean(OpenAiClient.class);
             RestClient expected = (RestClient) context.getBean("aiRestClient");
 
             assertThat(ReflectionTestUtils.getField(client, "aiRestClient"))

@@ -8,13 +8,19 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class RestClientConfig {
 
+    /**
+     * AI(OpenAI GPT-5.6 Luna) 호출 전용 RestClient.
+     *
+     * <p>reasoning 모델은 첫 토큰 전에 추론 토큰을 먼저 생성해 지연이 커질 수 있어
+     * Clova 기준(6초)보다 넉넉히 20초로 잡았다 — 워커 풀 포화를 피하려 그 이상은 안 둔다.
+     */
     @Bean
     public RestClient aiRestClient() {
         SimpleClientHttpRequestFactory factory =
             new SimpleClientHttpRequestFactory();
 
         factory.setConnectTimeout(3_000);
-        factory.setReadTimeout(6_000);
+        factory.setReadTimeout(20_000);
 
         return RestClient.builder()
             .requestFactory(factory)
