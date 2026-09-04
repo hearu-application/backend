@@ -171,13 +171,23 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
 - [x] 키 회전(rotation) 설계 반영 — `DiaryEncryptionProperties.keys`(keyVersion→키 맵)로 여러 버전
       공존 가능. 회전 절차: 새 keyVersion 키 추가 → `active-version` 변경 → 재백필 → 구버전 키 제거.
 
-### Phase 2 — 기존 데이터 백필 (P1 이후)
+### Phase 2 — 기존 데이터 백필 (P1 이후, 완료)
 
-- [ ] 일회성 백필 작업 구현 — 앱 컨텍스트에서 실행(`ApplicationRunner` 1회 또는 별도 커맨드).
-      기존 평문 행을 읽어 암호화 후 재저장. `diary`·`ai_response` 모두 대상.
-- [ ] **멱등성 보장** — 키 버전/포맷 프리픽스로 행별 "암호화됨" 여부 판별, 재실행 안전.
-- [ ] **롤백/부분 실패 시나리오 설계** — 중간 실패로 평문·암호문 혼재 시 복구 경로.
-- [ ] 백필 완료 검증 후에만 P3로 진행.
+- [x] 일회성 백필 작업 구현(`ContentEncryptionBackfillRunner`, `common/encrypt` 패키지) — `ApplicationRunner`로
+      기동 시 1회 실행. JPA를 거치지 않고 `JdbcTemplate`로 `diary.content`·`ai_response.content` 원시
+      컬럼을 직접 읽어 암호화 후 재저장. 실행 스위치(`diary.encryption.backfill.enabled=true`)는 어떤
+      `application*.yml`에도 선언하지 않고 실행 시점에만 환경변수로 준다(1회성 운영 스위치를 설정에
+      영구히 남기지 않기 위함).
+- [x] **멱등성 보장** — 별도 마커 컬럼 없이, 행마다 `ContentCryptoConverter.convertToEntityAttribute`로
+      먼저 복호화를 시도한다. GCM 인증 태그 덕분에 이미 암호화된 값만 성공하므로(위조 확률 무시 가능)
+      실패를 "아직 평문"의 신호로 삼는다.
+- [x] **롤백/부분 실패 시나리오 설계** — 트랜잭션으로 묶지 않고 행 단위 즉시 커밋. 중간 실패해도
+      이미 처리한 행은 남고, 재실행 시 멱등성 검사로 남은 평문 행만 다시 처리한다.
+- [x] 실행 전 사전 점검 — 실데이터를 건드리기 전 프로브 문자열로 암복호화 왕복 테스트를 해
+      키 설정 오류를 조기에 걸러낸다(전체 행 실패를 막기 위함, 계획에 없던 보강).
+- [ ] **실제 백필 실행 및 완료 검증** — 위 구현을 실제 환경(dev/prod)에 배포해 스위치를 켜고 실행,
+      로그로 `encrypted`/`alreadyEncrypted`/`skippedNull`/`failed` 건수를 확인한 뒤에만 P3로 진행.
+      (코드 구현은 완료했으나 실행은 배포 시점에 별도로 수행)
 
 ### Phase 3 — 컨버터 엔티티 적용 (P2 완료 후)
 
