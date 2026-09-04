@@ -125,6 +125,24 @@ public class AiResponseCallerTest {
             assertThat(systemPromptSentFor(ToneType.HONORIFIC)).contains("사용자 이름: 용준");
         }
 
+        @Test
+        @DisplayName("일기 원문이 평문 그대로 user 프롬프트에 전달된다")
+        void diary_content_reaches_user_prompt_as_plaintext() {
+            given(openAiClient.getAiResponse(anyList()))
+                .willReturn(openAiResponse("{\"response\":\"응답\"}"));
+
+            aiResponseCaller.call(event);
+
+            verify(openAiClient).getAiResponse(messagesCaptor.capture());
+            String userPrompt = messagesCaptor.getValue().stream()
+                .filter(message -> "user".equals(message.role()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("user 메시지가 전달되지 않았습니다"))
+                .content();
+
+            assertThat(userPrompt).contains(event.content());
+        }
+
         // LLM에 실제로 전달된 system 메시지를 꺼낸다.
         private String systemPromptSentFor(ToneType toneType) {
             given(openAiClient.getAiResponse(anyList()))

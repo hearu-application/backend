@@ -1,5 +1,6 @@
 package com.example.hearu.ai.response.domain;
 
+import com.example.hearu.common.encrypt.ContentCryptoConverter;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.diary.domain.Diary;
 import jakarta.persistence.*;
@@ -21,6 +22,7 @@ public class AiResponse extends BaseEntity {
     @JoinColumn(name = "diary_id", nullable = false)
     private Diary diary;
 
+    @Convert(converter = ContentCryptoConverter.class)
     @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 

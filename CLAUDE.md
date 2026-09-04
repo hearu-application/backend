@@ -141,3 +141,4 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | `LLM_COMPLETION_URL`, `LLM_API_KEY` | OpenAI (GPT-5.6 Luna) |
 | `LLM_MODEL`, `LLM_REASONING_EFFORT`, `LLM_MAX_COMPLETION_TOKENS` | OpenAI 요청 파라미터. 기본값 있어 미지정 시에도 기동됨(`gpt-5.6-luna` / `medium` / `1500`) |
 | `DISCORD_WEBHOOK_URL` | 장애 알림 |
+| `DIARY_ENCRYPTION_KEY`, `DIARY_ENCRYPTION_KEY_VERSION` | 일기·AI 응답 본문 컬럼 암호화(AES-256-GCM) 키. `KEY`는 Base64 인코딩된 32바이트 키, `VERSION`은 기본값 `1`이라 미지정 시에도 기동됨. `KEY`는 기본값이 빈 문자열이라 미지정이어도 기동은 되지만, 첫 일기·AI 응답 저장/조회에서 예외가 난다 |

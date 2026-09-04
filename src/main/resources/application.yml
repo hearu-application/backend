@@ -57,6 +57,13 @@ discord:
   webhook:
     url: ${DISCORD_WEBHOOK_URL}
 
+# 일기·AI 응답 본문 컬럼 암호화 키
+diary:
+  encryption:
+    active-version: ${DIARY_ENCRYPTION_KEY_VERSION:1}
+    keys:
+      1: ${DIARY_ENCRYPTION_KEY:}
+
 scheduler:
   refresh-token:
     cleanup:

@@ -30,3 +30,7 @@ paths:
 - `V1__baseline_schema.sql`은 Flyway 도입 이전 전체 스키마다. 기존 dev/prod는 `baseline-on-migrate`로
   V1을 건너뛰고 baseline(version 1)으로 표시, **빈 DB(신규 로컬)만** V1부터 전부 실행한다. baseline 대상
   DB는 V1이 안 돌아 V1을 고쳐도 기존 환경엔 반영되지 않는다.
+- **앱의 비밀(암호화 키 등)이 있어야 변환 가능한 기존 데이터**는 순수 SQL인 Flyway로 못 한다. 이때는
+  `ApplicationRunner` 기반 1회성 러너로 앱 컨텍스트에서 처리한다(선례: `ContentEncryptionBackfillRunner`).
+  실행 스위치는 어떤 `application*.yml`에도 남기지 않고 실행 시점에만 환경변수로 준다. 행 단위 즉시
+  커밋 + 멱등성 체크(재실행 시 이미 처리된 행을 안전하게 건너뜀)로 부분 실패에 대비한다.
