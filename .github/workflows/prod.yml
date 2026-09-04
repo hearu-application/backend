@@ -180,6 +180,12 @@ jobs:
 
             # Discord
             DISCORD_WEBHOOK_URL=${{ secrets.PROD_DISCORD_WEBHOOK_URL }}
+
+            # 일기·AI 응답 본문 암호화
+            DIARY_ENCRYPTION_KEY=${{ secrets.PROD_DIARY_ENCRYPTION_KEY }}
+
+            # TODO: 백필 완료 확인 후 삭제 (1회성 스위치)
+            DIARY_ENCRYPTION_BACKFILL_ENABLED=true
             EOF
 
             chmod 600 .env
