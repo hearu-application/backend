@@ -57,6 +57,14 @@ discord:
   webhook:
     url: ${DISCORD_WEBHOOK_URL}
 
+# 일기·AI 응답 본문 컬럼 암호화 키 (아직 어느 엔티티에도 적용되지 않음 — Phase 4에서 연결 예정,
+# docs/plan/diary-content-encryption.md 참고). 기본값을 비워 두어 미설정 상태로도 기동은 된다.
+diary:
+  encryption:
+    active-version: ${DIARY_ENCRYPTION_KEY_VERSION:1}
+    keys:
+      1: ${DIARY_ENCRYPTION_KEY:}
+
 scheduler:
   refresh-token:
     cleanup:
