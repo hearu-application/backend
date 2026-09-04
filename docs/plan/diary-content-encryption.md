@@ -185,9 +185,13 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
       이미 처리한 행은 남고, 재실행 시 멱등성 검사로 남은 평문 행만 다시 처리한다.
 - [x] 실행 전 사전 점검 — 실데이터를 건드리기 전 프로브 문자열로 암복호화 왕복 테스트를 해
       키 설정 오류를 조기에 걸러낸다(전체 행 실패를 막기 위함, 계획에 없던 보강).
-- [ ] **실제 백필 실행 및 완료 검증** — 위 구현을 실제 환경(dev/prod)에 배포해 스위치를 켜고 실행,
-      로그로 `encrypted`/`alreadyEncrypted`/`skippedNull`/`failed` 건수를 확인한 뒤에만 P3로 진행.
-      (코드 구현은 완료했으나 실행은 배포 시점에 별도로 수행)
+- [x] **실제 백필 실행 및 완료 검증(dev)** — 2026-09-04 Railway dev에서
+      `DIARY_ENCRYPTION_BACKFILL_ENABLED=true`로 실행. 로그 확인 결과
+      `diary`: encrypted=58, alreadyEncrypted=0, skippedNull=0, failed=0 /
+      `ai_response`: encrypted=39, alreadyEncrypted=0, skippedNull=8, failed=0.
+      실행 후 스위치 제거, 재기동 로그에 `[EncryptBackfill]` 미출력 확인(정상 비활성화).
+      **prod 백필은 별도** — prod는 `main` 브랜치 푸시로만 배포되므로(`.github/workflows/prod.yml`),
+      prod에 실데이터가 있다면 Phase 3 코드를 `main`에 반영하기 전 동일 절차를 prod에서도 거쳐야 한다.
 
 ### Phase 3 — 컨버터 엔티티 적용 (P2 완료 후)
 
