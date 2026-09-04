@@ -193,12 +193,17 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
       **prod 백필은 별도** — prod는 `main` 브랜치 푸시로만 배포되므로(`.github/workflows/prod.yml`),
       prod에 실데이터가 있다면 Phase 3 코드를 `main`에 반영하기 전 동일 절차를 prod에서도 거쳐야 한다.
 
-### Phase 3 — 컨버터 엔티티 적용 (P2 완료 후)
+### Phase 3 — 컨버터 엔티티 적용 (P2 완료 후, 완료)
 
-- [ ] `Diary.content`에 `@Convert(converter = DiaryContentCryptoConverter.class)` 부착.
+- [x] `Diary.content`에 `@Convert(converter = ContentCryptoConverter.class)` 부착.
       도메인 로직·팩토리·조회는 손대지 않음(`getContent()`는 여전히 평문 반환).
-- [ ] `AiResponse.content`에 동일 컨버터 재사용 부착(nullable — `completeResponse`만 값 채움).
-- [ ] AI 응답 흐름 무변경 확인 — 이벤트·프롬프트·OpenAI 전송은 평문 그대로 흐른다.
+- [x] `AiResponse.content`에 동일 컨버터 재사용 부착(nullable — `completeResponse`만 값 채움).
+- [x] AI 응답 흐름 무변경 확인 — 이벤트·프롬프트·OpenAI 전송은 평문 그대로 흐른다(코드 변경 없음,
+      컨버터는 JPA 저장/조회 경계에서만 개입).
+      **주의**: 이제 두 엔티티 모두 저장/조회 시 `DIARY_ENCRYPTION_KEY`가 필요하다 — 미설정이면
+      기동은 되지만(기본값 빈 문자열) 첫 저장/조회에서 `ContentCryptoException`이 던져진다.
+      기존 테스트는 전부 Mockito 단위 테스트(`@SpringBootTest`/`@DataJpaTest` 없음)라 영향 없음
+      (`./gradlew test` 전체 통과 확인, 2026-09-04).
 
 ### Phase 4 — 검증 (→ 아래 "검증" 절이 소유)
 

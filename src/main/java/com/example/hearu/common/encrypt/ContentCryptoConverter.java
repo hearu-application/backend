@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 /**
  * 일기·AI 응답 본문 컬럼 암호화 컨버터. {@code Diary.content}와 {@code AiResponse.content}가
  * 이 컨버터를 공유한다(재사용 근거는 docs/plan/diary-content-encryption.md 참고).
- * 아직 어느 엔티티에도 {@code @Convert}로 붙어 있지 않다 — 붙이는 시점(백필 이후)에 별도로 진행한다.
  *
  * <p>알고리즘은 AES-256-GCM. IV는 암호화마다 새로 난수 생성하며, 저장 포맷은
  * {@code Base64( keyVersion(1B) || iv(12B) || ciphertext || tag(16B) )}다. keyVersion을

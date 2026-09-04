@@ -1,6 +1,7 @@
 package com.example.hearu.diary.domain;
 
 import com.example.hearu.common.util.exception.BusinessException;
+import com.example.hearu.common.encrypt.ContentCryptoConverter;
 import com.example.hearu.common.entity.BaseEntity;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
 import com.example.hearu.user.domain.User;
@@ -30,6 +31,7 @@ public class Diary extends BaseEntity {
     // @OneToOne 기본 EAGER 때문에 모든 Diary 조회에 ai_response SELECT가 딸려와 N+1을 유발한다.
     // AiResponse의 생성/삭제는 AiResponseService가 담당한다.
 
+    @Convert(converter = ContentCryptoConverter.class)
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
