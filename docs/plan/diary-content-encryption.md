@@ -225,10 +225,16 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
       `AiResponseCaller`의 파싱 실패 시 원본 응답 DEBUG 로그는 이 계획 이전부터 있던 의도된 예외
       (AI 생성 응답 파싱 디버깅용, 코드 주석에 명시)로 이번 범위 밖이라 손대지 않았다.
 
-### Phase 5 — 문서 갱신 (→ 아래 "구현 시 함께 갱신할 문서" 절이 소유)
+### Phase 5 — 문서 갱신 (→ 아래 "구현 시 함께 갱신할 문서" 절이 소유, 완료)
 
-- [ ] `architecture.md`(KMS 외부 연동·암호화 경계), `CLAUDE.md` 환경변수 표(KMS 키 식별자),
-      `db-migration.md`(백필형 마이그레이션 선례 검토).
+- [x] `architecture.md` — **변경 없음(판단 완료)**. Phase 1에서 KMS를 쓰지 않기로 결정해 이 계획
+      초안이 전제했던 "KMS 외부 연동"은 실제로 생기지 않았다. 컬럼 암호화는 JPA 저장/조회 경계에서만
+      개입해 서비스 호출 방향·이벤트 경계·엔티티 상태 전이·필터/인가·soft delete 전파 중 어느 것도
+      바꾸지 않는다 — `CLAUDE.md`가 정한 문서 갱신 트리거([`architecture.md`](../architecture.md) 상단
+      "갱신 시점")에 해당하지 않는다.
+- [x] `CLAUDE.md` 환경변수 표 — `DIARY_ENCRYPTION_KEY`·`DIARY_ENCRYPTION_KEY_VERSION` 추가.
+- [x] `db-migration.md` — 앱 비밀이 필요한 백필은 Flyway로 못 한다는 것과 그 대안 패턴(1회성
+      `ApplicationRunner`, yml에 남기지 않는 실행 스위치, 행 단위 커밋 + 멱등성 체크)을 선례로 남김.
 
 ### 이번 범위 밖 (보류 항목 — 착수 금지, 판단만 기록)
 
