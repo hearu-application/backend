@@ -96,13 +96,15 @@ GCM은 매번 IV가 달라 **같은 평문도 매번 다른 암호문**이 된�
 
 **순수 Flyway SQL로는 못 한다** — 암호화에 앱의 키가 필요하기 때문이다. 절차:
 
-1. `V4__...` 로 **저장 포맷/컬럼 준비만** 한다. 암호문(Base64)이 평문보다 길어지므로
-   `TEXT`(64KB) 상한을 점검하고, 긴 일기를 고려해 필요하면 `MEDIUMTEXT`로 확장한다.
-   (기존 마이그레이션 파일은 수정 금지 — 새 버전으로 추가한다.)
-2. **일회성 백필 작업**(앱 컨텍스트에서 실행되는 마이그레이션 코드, 예: `ApplicationRunner`
+1. **일회성 백필 작업**(앱 컨텍스트에서 실행되는 마이그레이션 코드, 예: `ApplicationRunner`
    1회 실행 또는 별도 커맨드)으로 기존 평문 행을 읽어 암호화 후 다시 저장한다.
    행마다 "암호화됨" 여부를 구분할 수 있어야 재실행이 안전하다(키 버전 프리픽스가 그 역할을 겸할 수 있다).
-3. 백필 완료 확인 후에야 컨버터가 모든 읽기 경로에서 정상 동작한다.
+2. 백필 완료 확인 후에야 컨버터가 모든 읽기 경로에서 정상 동작한다.
+
+**컬럼 폭은 그대로 `TEXT`를 쓴다** — 현재 검증 제약(`diary.content` 최대 1,000자,
+`ai_response.content`는 `LLM_MAX_COMPLETION_TOKENS=1500` 토큰 한도) 기준으로 암호화(Base64 +
+keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 있어 확장이 불필요하다고
+판단했다(2026-09-04 검토). 이 제약이 실제로 완화되는 시점에 그 변경과 함께 컬럼 폭을 다시 검토한다.
 
 이 절차는 롤백 시나리오(중간 실패 시 평문·암호문 혼재)를 반드시 함께 설계한다.
 키 버전/포맷 프리픽스로 각 행의 상태를 판별할 수 있게 하는 이유가 이것이다.
@@ -127,22 +129,22 @@ GCM은 매번 IV가 달라 **같은 평문도 매번 다른 암호문**이 된�
 같은 컨버터를 `AiResponse.content`에 재사용하므로 확장 비용은 작다. **단 한 가지 차이**:
 `ai_response.content`는 `TEXT` **nullable**이고 `PENDING`·`FAILED` 상태는 값이 null이다
 (`completeResponse`만 값을 채운다). **컨버터는 null → null을 그대로 통과**시켜야 한다
-(`diary.content`는 NOT NULL이라 이 분기가 없다). `V4`(또는 별도 버전) 컬럼 준비와 백필을
-`ai_response`에도 동일하게 적용한다.
+(`diary.content`는 NOT NULL이라 이 분기가 없다). 백필도 `ai_response`에 동일하게 적용한다.
 
 ---
 
 ## TASK 분리
 
 아래는 위 설계를 구현 순서대로 쪼갠 것이다. **Phase 간 순서는 의존 관계상 고정**이다 —
-키 관리(P1)가 컨버터보다 먼저 서고, 컬럼 준비(P2)·백필(P3)이 컨버터를 읽기 경로에
-붙이는 일(P4)보다 반드시 선행한다(평문 행에 컨버터가 붙으면 복호화 실패로 기동이 깨진다).
-검증(P5)·문서(P6)의 상세는 아래 "검증"·"구현 시 함께 갱신할 문서" 절이 소유한다 — 여기서는
-어느 Phase에 묶이는지만 가리킨다.
+키 관리(P1)가 컨버터보다 먼저 서고, 백필(P3)이 컨버터를 읽기 경로에 붙이는 일(P4)보다
+반드시 선행한다(평문 행에 컨버터가 붙으면 복호화 실패로 기동이 깨진다). 컬럼 폭(TEXT)은
+현재 제약 기준 확장이 불필요하다고 판단해 별도 Phase를 두지 않는다(위 "기존 데이터
+백필(backfill)" 절 참고). 검증(P5)·문서(P6)의 상세는 아래 "검증"·"구현 시 함께 갱신할 문서"
+절이 소유한다 — 여기서는 어느 Phase에 묶이는지만 가리킨다.
 
 ### Phase 0 — 인프라 TDE (코드 무관, 별도 트랙)
 
-- [ ] MySQL이 관리형이면 스토리지 암호화(TDE)를 켠다. 코드 변경 없음.
+- [x] MySQL이 관리형이면 스토리지 암호화(TDE)를 켠다. 코드 변경 없음.
       → 계층 1. 백업·스냅샷·디스크 도난만 막는다. P1~P6과 독립적으로 진행 가능.
 
 **관리형 제공사 현황 (2026-09 조사)** — 계층 1은 인프라 선택에 좌우된다.
@@ -151,52 +153,50 @@ GCM은 매번 IV가 달라 **같은 평문도 매번 다른 암호문**이 된�
   즉 **Aiven을 쓰면 계층 1은 추가 조치 불필요**. 필요 시 BYOK(AWS/GCP/Azure KMS)로 키 통제 강화 가능.
 - 어느 제공사든 **엔진 레벨 TDE(테이블/컬럼)는 노출하지 않으며, 계층 1은 계층 2(컬럼 암호화)를 대체하지 못한다.**
 
-### Phase 1 — 암호화 코어 + 키 관리
+### Phase 1 — 암호화 코어 + 키 관리 (완료)
 
-- [ ] `DiaryContentCryptoConverter`(가칭) 구현 — AES-256-GCM, `convertToDatabaseColumn`/
-      `convertToEntityAttribute` 두 방향. **아직 엔티티에 `@Convert`로 붙이지 않는다**(P4에서 붙임).
-- [ ] 저장 포맷 확정·구현 — `Base64( keyVersion || iv(12B) || ciphertext || tag(16B) )`.
+- [x] `ContentCryptoConverter` 구현(`common/encrypt` 패키지, 가칭 `DiaryContentCryptoConverter`에서
+      개명 — `Diary`·`AiResponse`가 공유하는 컨버터임을 이름에 반영) — AES-256-GCM,
+      `convertToDatabaseColumn`/`convertToEntityAttribute` 두 방향. **아직 엔티티에 `@Convert`로
+      붙이지 않았다**(P4에서 붙임).
+- [x] 저장 포맷 확정·구현 — `Base64( keyVersion(1B) || iv(12B) || ciphertext || tag(16B) )`.
       IV는 암호화마다 새 난수. 키 버전 프리픽스는 회전·백필 상태 판별을 겸한다.
-- [ ] **null 통과 처리** — `ai_response.content`가 nullable이므로 `null → null` 분기 필수
-      (`diary.content`는 NOT NULL이지만 컨버터는 공유되므로 반드시 넣는다).
-- [ ] KMS + envelope 구성 — DEK로 본문 암호화, DEK는 KEK(KMS)로 감싸 보관. 앱 기동 시
-      KMS로 DEK 복호화해 메모리 보관. **DB와 다른 신뢰 경계**에 키를 둔다.
-- [ ] KMS 호출에 **타임아웃** 적용(기동 시 1회라도 무한 대기 금지 — 기존 외부 클라이언트 원칙).
-- [ ] 키 회전(rotation) 설계 반영 — 여러 키 버전 공존 시 저장 포맷의 keyVersion으로 복호화 키 선택.
+- [x] **null 통과 처리** — `ai_response.content`가 nullable이므로 `null → null` 분기 구현
+      (`diary.content`는 NOT NULL이지만 컨버터는 공유되므로 넣음).
+- [x] **키 관리 방식 변경(결정)** — 관리형 클라우드가 아닌 단일 VM docker-compose 배포이고 별도
+      KMS/Vault가 없어, KMS+envelope(DEK/KEK) 대신 **환경변수 마스터 키**(`DIARY_ENCRYPTION_KEY`)를
+      그대로 AES 키로 쓰는 방식으로 단순화(`DiaryEncryptionProperties`). KMS 호출이 없으므로
+      "KMS 타임아웃" 항목은 해당 없음. **한계**: 앱 서버가 침해되면 키도 함께 노출됨
+      (JWT_SECRET_KEY와 동일한 신뢰 모델 — "이 문서가 다루지 않는 것" 절의 한계와 같은 종류).
+- [x] 키 회전(rotation) 설계 반영 — `DiaryEncryptionProperties.keys`(keyVersion→키 맵)로 여러 버전
+      공존 가능. 회전 절차: 새 keyVersion 키 추가 → `active-version` 변경 → 재백필 → 구버전 키 제거.
 
-### Phase 2 — Flyway 컬럼 준비
-
-- [ ] `V4__...` 신규 마이그레이션 추가 — 암호문이 평문보다 길어지므로 `diary.content`·
-      `ai_response.content`의 `TEXT`(64KB) 상한 점검, 필요 시 `MEDIUMTEXT`로 확장.
-      **기존 마이그레이션 파일은 수정 금지**(체크섬 불일치로 기동 실패), 새 버전으로만 추가.
-
-### Phase 3 — 기존 데이터 백필 (P2 이후)
+### Phase 2 — 기존 데이터 백필 (P1 이후)
 
 - [ ] 일회성 백필 작업 구현 — 앱 컨텍스트에서 실행(`ApplicationRunner` 1회 또는 별도 커맨드).
       기존 평문 행을 읽어 암호화 후 재저장. `diary`·`ai_response` 모두 대상.
 - [ ] **멱등성 보장** — 키 버전/포맷 프리픽스로 행별 "암호화됨" 여부 판별, 재실행 안전.
 - [ ] **롤백/부분 실패 시나리오 설계** — 중간 실패로 평문·암호문 혼재 시 복구 경로.
-- [ ] 백필 완료 검증 후에만 P4로 진행.
+- [ ] 백필 완료 검증 후에만 P3로 진행.
 
-### Phase 4 — 컨버터 엔티티 적용 (P3 완료 후)
+### Phase 3 — 컨버터 엔티티 적용 (P2 완료 후)
 
 - [ ] `Diary.content`에 `@Convert(converter = DiaryContentCryptoConverter.class)` 부착.
       도메인 로직·팩토리·조회는 손대지 않음(`getContent()`는 여전히 평문 반환).
 - [ ] `AiResponse.content`에 동일 컨버터 재사용 부착(nullable — `completeResponse`만 값 채움).
 - [ ] AI 응답 흐름 무변경 확인 — 이벤트·프롬프트·OpenAI 전송은 평문 그대로 흐른다.
 
-### Phase 5 — 검증 (→ 아래 "검증" 절이 소유)
+### Phase 4 — 검증 (→ 아래 "검증" 절이 소유)
 
 - [ ] 단위: 컨버터 왕복, IV 비결정성(같은 평문 → 다른 암호문), 1비트 변조 시 복호화 실패.
 - [ ] 통합: DB 원시 값에 평문 미포함, JPA 조회 복원, AI 이벤트 경로 평문 전달.
 - [ ] 백필: 혼재 상태 재실행 멱등성, 중간 실패 복구.
 - [ ] 로깅 회귀: `LogMasker.textLength()` 원칙 유지, 본문 로그 미노출.
 
-### Phase 6 — 문서 갱신 (→ 아래 "구현 시 함께 갱신할 문서" 절이 소유)
+### Phase 5 — 문서 갱신 (→ 아래 "구현 시 함께 갱신할 문서" 절이 소유)
 
 - [ ] `architecture.md`(KMS 외부 연동·암호화 경계), `CLAUDE.md` 환경변수 표(KMS 키 식별자),
       `db-migration.md`(백필형 마이그레이션 선례 검토).
-- [ ] 구현 완료 후 이 문서(`docs/plan/diary-content-encryption.md`) 삭제.
 
 ### 이번 범위 밖 (보류 항목 — 착수 금지, 판단만 기록)
 
