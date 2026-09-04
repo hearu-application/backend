@@ -205,12 +205,25 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
       기존 테스트는 전부 Mockito 단위 테스트(`@SpringBootTest`/`@DataJpaTest` 없음)라 영향 없음
       (`./gradlew test` 전체 통과 확인, 2026-09-04).
 
-### Phase 4 — 검증 (→ 아래 "검증" 절이 소유)
+### Phase 4 — 검증 (→ 아래 "검증" 절이 소유, 완료)
 
-- [ ] 단위: 컨버터 왕복, IV 비결정성(같은 평문 → 다른 암호문), 1비트 변조 시 복호화 실패.
-- [ ] 통합: DB 원시 값에 평문 미포함, JPA 조회 복원, AI 이벤트 경로 평문 전달.
-- [ ] 백필: 혼재 상태 재실행 멱등성, 중간 실패 복구.
-- [ ] 로깅 회귀: `LogMasker.textLength()` 원칙 유지, 본문 로그 미노출.
+- [x] 단위: 컨버터 왕복, IV 비결정성(같은 평문 → 다른 암호문), 1비트 변조 시 복호화 실패
+      (`ContentCryptoConverterTest`). 키 회전 후 구버전 복호화, 미등록 keyVersion 예외도 포함.
+- [x] 통합(범위 조정) — 이 프로젝트는 전체가 Mockito 단위 테스트이고 DB/Spring 컨텍스트 테스트
+      인프라(H2·Testcontainers 등)가 아예 없다(`testing.md`: "단위 테스트에 Spring 컨텍스트 없음").
+      새 인프라를 추가하는 대신, 컨버터가 곧 JPA 저장/조회 경계 그 자체라는 점을 이용해 동등한 보장을
+      단위 테스트로 대체했다: `convertToDatabaseColumn` 출력이 평문을 포함하지 않음(="DB 원시 값에
+      평문 미포함"), 왕복 시 원문 복원(="JPA 조회 복원") — 둘 다 `ContentCryptoConverterTest`.
+      "AI 이벤트 경로 평문 전달"은 `AiResponseCallerTest`에 케이스 추가
+      (`diary_content_reaches_user_prompt_as_plaintext` — 이벤트의 일기 원문이 OpenAI로 보내는
+      user 프롬프트에 평문 그대로 도달하는지 직접 확인)로 커버, `DiaryServiceTest`의 기존
+      `event.content()` 검증과 함께 이벤트 발행~프롬프트 조립까지의 경로를 잠근다.
+- [x] 백필: 혼재 상태 재실행 멱등성, 중간 실패 복구 (`ContentEncryptionBackfillRunnerTest`) —
+      평문/암호문/null 혼재, 한 행 실패해도 나머지 행 계속 처리, 이미 암호화된 행 재처리 시 미갱신.
+- [x] 로깅 회귀: `LogMasker.textLength()` 원칙 유지, 본문 로그 미노출 — `DiaryService`(45-46행)·
+      `AiResponseService`(48-49행) 재확인, 컨버터 도입 후에도 둘 다 마스킹 유지(2026-09-04 grep 확인).
+      `AiResponseCaller`의 파싱 실패 시 원본 응답 DEBUG 로그는 이 계획 이전부터 있던 의도된 예외
+      (AI 생성 응답 파싱 디버깅용, 코드 주석에 명시)로 이번 범위 밖이라 손대지 않았다.
 
 ### Phase 5 — 문서 갱신 (→ 아래 "구현 시 함께 갱신할 문서" 절이 소유)
 
@@ -234,13 +247,17 @@ keyVersion/iv/tag 오버헤드) 후에도 `TEXT`(64KB) 대비 8~12배 여유가 
 - **앱 서버 침해** — 앱이 키에 접근할 수 있으므로 서버가 완전히 장악되면 본문도 노출된다.
   이는 컬럼 암호화의 구조적 한계이며, 침해 탐지·최소권한·시크릿 격리로 대응한다.
 
-## 검증
+## 검증 (완료 — `ContentCryptoConverterTest`, `ContentEncryptionBackfillRunnerTest`, `AiResponseCallerTest`)
 
 - **단위** — 컨버터 왕복 테스트: `plain → encrypt → decrypt == plain`, 매 암호화의
   IV가 달라 **같은 평문의 두 암호문이 서로 다른지**, 저장값 1비트 변조 시 복호화가
   **실패(무결성 위반 탐지)** 하는지.
-- **통합** — `Diary` 저장 후 **DB 원시 값이 평문을 포함하지 않는지** 직접 조회로 확인,
-  JPA 조회 시 평문으로 복원되는지, AI 이벤트 경로에 평문이 정상 전달되는지.
+- **통합(범위 조정)** — 이 프로젝트에 DB/Spring 컨텍스트 테스트 인프라가 없어(전부 Mockito 단위
+  테스트, `testing.md` 참고) 실제 DB 대신 컨버터 단위 테스트로 대체했다: `convertToDatabaseColumn`
+  출력이 **평문을 포함하지 않는지**(DB 원시 값 대체 검증), 왕복 시 평문으로 **복원되는지**(JPA 조회
+  대체 검증) — 컨버터 메서드가 곧 JPA가 호출하는 그 지점이므로 등가다. AI 이벤트 경로는
+  `AiResponseCallerTest`에서 이벤트의 일기 원문이 OpenAI로 보내는 user 프롬프트에 평문 그대로
+  도달하는지 직접 확인.
 - **백필** — 평문·암호문 혼재 상태에서 재실행이 안전한지(멱등성), 중간 실패 후 복구 경로.
 - **로깅 회귀** — 본문이 로그에 새지 않는지 재확인. 현재 `DiaryService`·`AiResponseService`가
   `LogMasker.textLength()`로 길이만 남기는 원칙을 컨버터 도입 후에도 유지한다.
