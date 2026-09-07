@@ -26,7 +26,7 @@ public class PromptBuilderTest {
             String prompt = promptBuilder.systemPromptBuild("용준", ToneType.INFORMAL);
 
             assertThat(prompt).contains("구어체 모음 연장을 적용한다");
-            assertThat(prompt).contains("속상했겠어어");
+            assertThat(prompt).contains("속상하겠어어");
             assertThat(prompt).doesNotContain("존댓말");
             assertThat(prompt).doesNotContain("항상 '님'을 붙인다");
         }
@@ -41,7 +41,7 @@ public class PromptBuilderTest {
             assertThat(prompt).contains("허탈하셨겠어요");
             assertThat(prompt).doesNotContain("구어체 모음 연장을 적용한다");
             // [예시]가 규칙보다 톤을 강하게 지배하므로, 반말 예시가 섞이면 존댓말 지시가 무력화된다
-            assertThat(prompt).doesNotContain("속상했겠어어");
+            assertThat(prompt).doesNotContain("속상하겠어어");
         }
 
         @Test
