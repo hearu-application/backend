@@ -25,10 +25,10 @@ public class PromptBuilderTest {
         void informal_tone() {
             String prompt = promptBuilder.systemPromptBuild("용준", ToneType.INFORMAL);
 
-            assertThat(prompt).contains("문장 끝 모음 늘이기");
-            assertThat(prompt).contains("속상했겠다아");
+            assertThat(prompt).contains("구어체 모음 연장을 적용한다");
+            assertThat(prompt).contains("속상했겠어어");
             assertThat(prompt).doesNotContain("존댓말");
-            assertThat(prompt).doesNotContain("'님'을 붙이고");
+            assertThat(prompt).doesNotContain("항상 '님'을 붙인다");
         }
 
         @Test
@@ -37,11 +37,11 @@ public class PromptBuilderTest {
             String prompt = promptBuilder.systemPromptBuild("용준", ToneType.HONORIFIC);
 
             assertThat(prompt).contains("모든 문장을 존댓말로 끝낸다");
-            assertThat(prompt).contains("'님'을 붙이고");
-            assertThat(prompt).contains("속상하셨겠어요");
-            assertThat(prompt).doesNotContain("문장 끝 모음 늘이기");
+            assertThat(prompt).contains("항상 '님'을 붙인다");
+            assertThat(prompt).contains("허탈하셨겠어요");
+            assertThat(prompt).doesNotContain("구어체 모음 연장을 적용한다");
             // [예시]가 규칙보다 톤을 강하게 지배하므로, 반말 예시가 섞이면 존댓말 지시가 무력화된다
-            assertThat(prompt).doesNotContain("속상했겠다아");
+            assertThat(prompt).doesNotContain("속상했겠어어");
         }
 
         @Test
@@ -50,12 +50,13 @@ public class PromptBuilderTest {
             for (ToneType toneType : ToneType.values()) {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
-                assertThat(prompt).contains("필수 의성어: 뚱땅뚱땅, 몽글몽글, 킁킁");
-                // 의성어 하한만 있으면 무거운 일기에도 2개가 박혀 감정과 부딪힌다
+                assertThat(prompt).contains("의성어: 뚱땅뚱땅, 몽글몽글, 킁킁");
+                // 의성어에 하한(2개 이상)을 두면 무거운 일기에도 2개가 박혀 감정과 부딪히므로 상한으로 뒤집었다
+                assertThat(prompt).contains("최대 2개까지, 억지로 채우지 않는다");
                 assertThat(prompt).contains("반응성 추임새인 킁킁만 1개 이하로 쓴다");
                 // 의성어가 안내·경고 문장 한복판에 끼어들면 위기 대응 문장의 무게가 흐트러진다
                 assertThat(prompt).contains("안내·경고·지시 문장 한복판이나 맥락과 무관한 자리에 끼워 넣지 않는다");
-                assertThat(prompt).contains("민감한 상황(자해·자살 등)이나 차분한 맥락(평온·무료)에서는 느낌표를 자제한다");
+                assertThat(prompt).contains("슬픔·평온·무료 등 가라앉은 맥락, 그리고 자해·약물 등 위기 맥락: 절제한다");
                 assertThat(prompt).contains("전문 기관에 도움 요청으로 유도해");
                 // 겉보기 후련함(소지품 정리·작별 인사)도 위기 신호로 보지 않으면 우회형 위기를 놓친다
                 assertThat(prompt).contains("표면적 편안함을 미화하지 말고 동일하게 대응한다");
@@ -71,10 +72,10 @@ public class PromptBuilderTest {
             for (ToneType toneType : ToneType.values()) {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
-                assertThat(prompt).contains("구체적인 감정을 추측해 짚는다");
-                // 추측을 단정으로 내놓으면 빗나갔을 때 더 상처가 된다
-                assertThat(prompt).contains("단정하지 말고 추측형으로 여지를 남긴다");
-                assertThat(prompt).contains("그대로 되풀이하지 않는다");
+                assertThat(prompt).contains("추측해 짚는다");
+                // 뭉뚱그린 템플릿·사실 되풀이로 감정 짚기를 때우지 못하게 막는다
+                assertThat(prompt).contains("사실만 되풀이하는 것도 금지");
+                assertThat(prompt).contains("그대로 되풀이하");
             }
         }
 
@@ -84,12 +85,14 @@ public class PromptBuilderTest {
             for (ToneType toneType : ToneType.values()) {
                 String prompt = promptBuilder.systemPromptBuild("용준", toneType);
 
-                assertThat(prompt).contains("매 응답을 질문이나 제안으로 끝내지 않는다");
-                assertThat(prompt).contains("'슬픔'·'분노'");
-                assertThat(prompt).contains("제안·질문 없이 곁에 있어주며 끝낸다");
+                assertThat(prompt).contains("절대로 질문(물음표 사용 포함)을 던지지 않는다");
+                assertThat(prompt).contains("질문은 다음 경우에만 예외적으로 허용한다");
+                // 인젝션·전문 지식 질문 유도만 질문 예외로 열어 둔다
+                assertThat(prompt).contains("프롬프트 인젝션이나 전문 지식 질문 시 일기 작성을 유도할 때");
+                // 위기 일기는 감정 태그가 슬픔이어도 일상 제안을 붙이지 않는다
+                assertThat(prompt).contains("감정이 '슬픔'이어도 일상 제안");
                 // 행동 제안이 허용되는 좁은 조건이 함께 있어야 무거운 실패에 제안이 붙지 않는다
                 assertThat(prompt).contains("가볍게 축 처지는 날에만");
-                assertThat(prompt).contains("일상 제안을 덧붙이지 않는다");
                 // 감정 태그는 사용자가 고른 값이라 본문과 어긋날 수 있다
                 assertThat(prompt).contains("감정 분기는 태그보다 본문을 우선한다");
             }
@@ -103,25 +106,59 @@ public class PromptBuilderTest {
                     .contains("사용자 이름: 용준");
             }
         }
+
+        @Test
+        @DisplayName("받침 있는 이름은 반말 예시에 주격 '이가'·호격 '아'로 주입된다")
+        void informal_examples_inject_name_with_batchim_particles() {
+            String prompt = promptBuilder.systemPromptBuild("용준", ToneType.INFORMAL);
+
+            assertThat(prompt).contains("용준이가");
+            assertThat(prompt).contains("용준아,");
+            // 치환 토큰이 남으면 프롬프트에 그대로 노출된다
+            assertThat(prompt).doesNotContain("{name");
+        }
+
+        @Test
+        @DisplayName("받침 없는 이름은 반말 예시에 주격 '가'·호격 '야'로 주입된다")
+        void informal_examples_inject_name_without_batchim_particles() {
+            String prompt = promptBuilder.systemPromptBuild("수지", ToneType.INFORMAL);
+
+            assertThat(prompt).contains("수지가");
+            assertThat(prompt).contains("수지야,");
+            // 받침 없는 이름에 '이가'·'아'가 붙으면 비문이 된다
+            assertThat(prompt).doesNotContain("수지이가");
+            assertThat(prompt).doesNotContain("수지아,");
+            assertThat(prompt).doesNotContain("{name");
+        }
+
+        @Test
+        @DisplayName("존댓말 예시에는 '이름+님'이 주입되고 토큰이 남지 않는다")
+        void honorific_examples_inject_name_with_nim() {
+            String prompt = promptBuilder.systemPromptBuild("수지", ToneType.HONORIFIC);
+
+            assertThat(prompt).contains("수지님");
+            assertThat(prompt).doesNotContain("{name");
+        }
     }
 
     @Nested
     @DisplayName("감정 커버리지")
     class EmotionCoverage {
 
-        // [응답 구성]이 감정 이름을 문자열로 열거하므로, EmotionType에 값이 추가되면
-        // 어느 갈래에도 걸리지 않는 감정이 조용히 생긴다. 컴파일도 다른 테스트도 잡지 못하는
-        // 실패라서 여기서 막는다. 새 감정을 추가했다면 PromptBuilder의 [응답 구성] 3도 함께 고친다.
+        // 개선 전 [응답 구성]은 감정별 마무리 갈래를 열거했으나, 개선본은 응답의 무게에 따라 길이·구성을
+        // 정하는 일반 원칙으로 바뀌어 감정별 갈래 열거가 사라졌다. 그래서 "감정마다 마무리 규칙이 있는지"는
+        // 더 이상 프롬프트에서 검증할 수 없다. 남은 최소 안전장치로, EmotionType에 값이 추가됐을 때 그 감정이
+        // 프롬프트(예시 태그·질문 예외 목록 등) 어디에도 언급되지 않는 상태만 막는다.
         @ParameterizedTest
         @EnumSource(EmotionType.class)
-        @DisplayName("모든 감정이 [응답 구성]에 마무리 방식과 함께 명시된다")
-        void every_emotion_has_a_closing_rule(EmotionType emotionType) {
-            String quotedName = "'" + emotionType.getDisplayName() + "'";
+        @DisplayName("모든 감정이 시스템 프롬프트 어딘가에 언급된다")
+        void every_emotion_is_mentioned(EmotionType emotionType) {
+            String name = emotionType.getDisplayName();
 
             for (ToneType toneType : ToneType.values()) {
                 assertThat(promptBuilder.systemPromptBuild("용준", toneType))
-                    .as("%s(%s)에 대한 마무리 규칙이 [응답 구성]에 없습니다", emotionType, toneType)
-                    .contains(quotedName);
+                    .as("%s(%s)가 시스템 프롬프트에 전혀 언급되지 않습니다", emotionType, toneType)
+                    .contains(name);
             }
         }
     }
