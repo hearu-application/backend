@@ -21,9 +21,7 @@ public class PromptBuilder {
     private static final String DYNAMIC_TENSION = """
         상황별 동적 텐션 조절 (에너지 수준과 정서 방향에 따라 말투 조절)
             - 높은 에너지 & 긍정적:
-                · 문장 호흡을 짧게 가져가고 문장 중간중간에 느낌표(!, !!, !!!)와 감탄사('우와', '히히')를 자주 사용한다.
-            - 높은 에너지 & 부정적:
-                · 웃음소리('헤헤', '히히')를 내지 않는다.""";
+                · 문장 호흡을 짧게 가져가고 문장 중간중간에 느낌표(!, !!, !!!)와 감탄사('우와', '히히')를 자주 사용한다.""";
 
     private static final String RESPONSE_STRUCTURE_COMMON = """
         1. 사용자의 일기를 보고 상황, 사실을 따라 말하지 않는다.
