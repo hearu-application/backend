@@ -106,7 +106,7 @@ public class AiResponseCallerTest {
         void honorific_event_builds_honorific_system_prompt() {
             String systemPrompt = systemPromptSentFor(ToneType.HONORIFIC);
 
-            assertThat(systemPrompt).contains("모든 문장을 존댓말로 끝낸다");
+            assertThat(systemPrompt).contains("친근한 존댓말(해요체)로 통일한다");
             assertThat(systemPrompt).doesNotContain("구어체 모음 연장을 적용한다");
         }
 
@@ -116,7 +116,7 @@ public class AiResponseCallerTest {
             String systemPrompt = systemPromptSentFor(ToneType.INFORMAL);
 
             assertThat(systemPrompt).contains("구어체 모음 연장을 적용한다");
-            assertThat(systemPrompt).doesNotContain("모든 문장을 존댓말로 끝낸다");
+            assertThat(systemPrompt).doesNotContain("친근한 존댓말(해요체)로 통일한다");
         }
 
         @Test
