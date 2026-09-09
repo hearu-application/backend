@@ -174,7 +174,7 @@ sequenceDiagram
     Note over L: AFTER_COMMIT + @Async<br/>MDC(requestId/userId) 전파됨
     DS->>L: DiaryAiResponseRequestedEvent
     L->>AC: call(event)
-    AC->>AC: PromptBuilder로 system/user 프롬프트 생성<br/>(system은 toneType에 따라 말투 규칙·예시 분기)
+    AC->>AC: PromptBuilder로 system/user 프롬프트 생성<br/>(system은 toneType에 따라 말투 규칙 분기, 닉네임 조사 주입)
     AC->>LLM: POST (system + user 메시지)
     LLM-->>AC: OpenAiChatResponse
     AC->>AC: JSON 파싱 → "response" 필드 검증
