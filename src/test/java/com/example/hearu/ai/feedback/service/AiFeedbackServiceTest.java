@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +50,7 @@ public class AiFeedbackServiceTest {
         User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        Diary diary = Diary.create(user, "내용", EmotionType.JOY);
+        Diary diary = Diary.create(user, "내용", EmotionType.JOY, LocalDate.now());
         ReflectionTestUtils.setField(diary, "diaryId", 1L);
 
         aiResponse = AiResponse.create(diary);

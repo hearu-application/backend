@@ -3,6 +3,7 @@ package com.example.hearu.ai.response.service;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.*;
 import static org.mockito.BDDMockito.*;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +49,7 @@ public class AiResponseServiceTest {
         );
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        Diary diary = Diary.create(user, "내용", EmotionType.JOY);
+        Diary diary = Diary.create(user, "내용", EmotionType.JOY, LocalDate.now());
         ReflectionTestUtils.setField(diary, "diaryId", 1L);
 
         aiResponse = AiResponse.create(diary);
@@ -75,7 +76,7 @@ public class AiResponseServiceTest {
         void ai_response_forbidden() {
             User otherUser = User.create("other@naver.com", ProviderType.KAKAO, "9999999999");
             ReflectionTestUtils.setField(otherUser, "userId", 2L);
-            Diary otherDiary = Diary.create(otherUser, "다른 내용", EmotionType.JOY);
+            Diary otherDiary = Diary.create(otherUser, "다른 내용", EmotionType.JOY, LocalDate.now());
             AiResponse otherAiResponse = AiResponse.create(otherDiary);
 
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(otherAiResponse));
@@ -216,7 +217,7 @@ public class AiResponseServiceTest {
         @DisplayName("성공 - PENDING 상태로 저장")
         void success() {
             User user = User.create("example@naver.com", ProviderType.KAKAO, "1234567890");
-            Diary diary = Diary.create(user, "내용", EmotionType.JOY);
+            Diary diary = Diary.create(user, "내용", EmotionType.JOY, LocalDate.now());
             ReflectionTestUtils.setField(diary, "diaryId", 1L);
 
             aiResponseService.createPending(diary);

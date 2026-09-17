@@ -161,6 +161,8 @@ sequenceDiagram
     DC->>DS: createDiary(userId, request)
     DS->>DB: User 조회
     DS->>DS: 닉네임 존재 검증
+    DS->>DS: 대상 날짜 범위 검증(오늘-7~오늘)
+    Note right of DS: 범위 밖이면<br/>DIARY_DATE_OUT_OF_RANGE
     DS->>DB: 오늘 작성 수 count
     Note right of DS: 하루 10건 초과 시<br/>DIARY_DAILY_LIMIT_EXCEEDED
     DS->>DB: Diary 저장
@@ -194,6 +196,7 @@ sequenceDiagram
 | `PENDING` 행이 **일기 저장과 같은 트랜잭션**에서 만들어진다 | 폴링이 "아직 없음"이 아니라 "처리 중"을 볼 수 있다 |
 | `MdcTaskDecorator`가 MDC를 워커로 전파한다 | 작성 요청부터 AI 완료까지 **`requestId` 하나로 추적**된다 |
 | 말투(`toneType`)는 **이벤트 발행 시점의 값**으로 굳는다 | 응답 생성 중 사용자가 설정을 바꿔도 진행 중인 응답에는 반영되지 않는다 |
+| 일기는 **과거 날짜(오늘-7~오늘)로 작성**할 수 있고, 표시 날짜는 `diaryDate`(제출 시각 `createdAt`과 분리) | 캘린더는 `diaryDate` 기준으로 보여주고, 하루 10건 제한·오늘 작성 수는 `createdAt`(제출일) 기준으로 센다 — 과거 날짜 일기도 오늘 작성분에 포함된다 |
 
 ### 4.2 AI 응답 상태 기계
 
@@ -373,10 +376,10 @@ awaitTerminationSeconds           30
 |---|---|---|
 | auth | `POST /api/v1/auth/oauth/{provider}` | permitAll · 가입 겸 로그인 |
 | auth | `POST /api/v1/auth/token/refresh` | permitAll · 토큰 회전 |
-| diary | `POST /api/v1/diaries` | 하루 10건 제한 · AI 이벤트 발행 |
+| diary | `POST /api/v1/diaries` | 하루 10건 제한(제출일 기준) · 과거 7일 backdating · AI 이벤트 발행 |
 | diary | `GET /api/v1/diaries/{diaryId}` | |
-| diary | `GET /api/v1/diaries/today/count` | |
-| diary | `GET /api/v1/diaries/calendar` | DTO 직접 조회(N+1 회피) |
+| diary | `GET /api/v1/diaries/today/count` | 제출일(`createdAt`) 기준 |
+| diary | `GET /api/v1/diaries/calendar` | DTO 직접 조회(N+1 회피) · `diaryDate`(대상 날짜) 기준 |
 | diary | `DELETE /api/v1/diaries/{diaryId}` | 204 · AI 응답·피드백 전파 |
 | ai-response | `POST /api/v1/diaries/{diaryId}/ai-response` | 재요청 · COMPLETED면 거부 · **`DiaryController`** |
 | ai-response | `GET /api/v1/diaries/{diaryId}/ai-response` | **폴링 대상** · **`DiaryController`** |
