@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
+
 public record DiaryCreateRequest(
 
     @NotBlank(message = "일기 내용은 필수 항목입니다.")
@@ -13,5 +15,8 @@ public record DiaryCreateRequest(
     String content,
 
     @NotNull(message = "감정은 필수 항목입니다.")
-    EmotionType emotionType
+    EmotionType emotionType,
+
+    // 대상 날짜(선택, 생략 시 오늘). 범위 검증은 LocalDate.now()가 필요해 서비스에서 한다.
+    LocalDate diaryDate
 ){}

@@ -121,7 +121,7 @@ refactor(ai-response): AOP 프록시 분리 및 코드 품질 개선
 | Database | MySQL + Spring Data JPA (MySQLDialect), 스키마는 Flyway |
 | AI | OpenAI GPT-5.6 Luna (`OpenAiClient`) |
 | Notifications | Discord webhook (`DiscordNotifierClient`) |
-| Scheduling | `@Scheduled` cron — refresh token 정리 (`RefreshTokenCleanupScheduler`) |
+| Scheduling | `@Scheduled` cron — refresh token 정리(`RefreshTokenCleanupScheduler`), TLS 인증서 만료 감시(`CertExpiryMonitor`) |
 | Docs | SpringDoc OpenAPI (Swagger UI) |
 | Observability | 프로필별 로그 레벨, `MdcLoggingFilter`, `MdcTaskDecorator`, `LogMasker`, Actuator (`/actuator/health`) |
 

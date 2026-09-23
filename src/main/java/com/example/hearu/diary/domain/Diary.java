@@ -12,6 +12,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Entity
 @Getter
@@ -39,14 +41,19 @@ public class Diary extends BaseEntity {
     @Column(name = "emotion_type", nullable = false, length = 50)
     private EmotionType emotionType;
 
-    private Diary(User user, String content, EmotionType emotionType) {
+    // 일기의 대상 날짜. 제출 시각(createdAt)과 분리해 과거 날짜 일기를 그 날짜로 조회한다.
+    @Column(name = "diary_date", nullable = false, updatable = false)
+    private LocalDate diaryDate;
+
+    private Diary(User user, String content, EmotionType emotionType, LocalDate diaryDate) {
         this.user = user;
         this.content = content;
         this.emotionType = emotionType;
+        this.diaryDate = diaryDate;
     }
 
-    public static Diary create(User user, String content, EmotionType emotionType) {
-        return new Diary(user, content, emotionType);
+    public static Diary create(User user, String content, EmotionType emotionType, LocalDate diaryDate) {
+        return new Diary(user, content, emotionType, diaryDate);
     }
 
     public void validateOwner(Long userId) {

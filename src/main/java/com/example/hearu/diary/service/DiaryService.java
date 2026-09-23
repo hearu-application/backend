@@ -39,6 +39,7 @@ public class DiaryService {
     private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final int DIARY_DAILY_LIMIT = 10;
+    private static final int DIARY_BACKDATE_LIMIT_DAYS = 7;
 
     public DiaryCreateResponse createDiary(Long userId, DiaryCreateRequest request) {
 
@@ -51,8 +52,16 @@ public class DiaryService {
         // 2. User 닉네임이 존재하는지 판단(정책)
         user.validateNicknameExists();
 
-        // 3. 하루 일기 제한 검사(정책)
+        // 3. 대상 날짜 결정 및 범위 검증(정책). 생략 시 오늘
         LocalDate today = LocalDate.now();
+        LocalDate targetDate = request.diaryDate() != null ? request.diaryDate() : today;
+        if (targetDate.isAfter(today) || targetDate.isBefore(today.minusDays(DIARY_BACKDATE_LIMIT_DAYS))) {
+            log.warn("작성 가능한 날짜 범위를 벗어났습니다. userId={}, targetDate={}, today={}",
+                    userId, targetDate, today);
+            throw new BusinessException(DiaryErrorCode.DIARY_DATE_OUT_OF_RANGE);
+        }
+
+        // 4. 하루 일기 제한 검사(정책). 과거 날짜 일기도 오늘 작성 횟수에 포함되므로 createdAt/오늘 기준으로 센다
         long count = diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             userId,
             today.atStartOfDay(),
@@ -65,18 +74,19 @@ public class DiaryService {
             throw new BusinessException(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED);
         }
 
-        // 4. Diary 엔티티 생성 및 저장
+        // 5. Diary 엔티티 생성 및 저장
         Diary diary = Diary.create(
                 user,
                 request.content(),
-                request.emotionType()
+                request.emotionType(),
+                targetDate
         );
         diaryRepository.save(diary);
 
-        // 5. PENDING 상태의 AI 응답 생성 (diary가 저장되어 id가 채워진 뒤 호출)
+        // 6. PENDING 상태의 AI 응답 생성 (diary가 저장되어 id가 채워진 뒤 호출)
         aiResponseService.createPending(diary);
 
-        // 6. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
+        // 7. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
         applicationEventPublisher.publishEvent(
             new DiaryAiResponseRequestedEvent(
@@ -89,11 +99,12 @@ public class DiaryService {
             )
         );
 
-        // 7. 생성된 일기 정보 반환
+        // 8. 생성된 일기 정보 반환
         return new DiaryCreateResponse(
                 diary.getDiaryId(),
                 diary.getContent(),
-                diary.getEmotionType()
+                diary.getEmotionType(),
+                diary.getDiaryDate()
         );
     }
 
@@ -112,6 +123,7 @@ public class DiaryService {
                 diary.getDiaryId(),
                 diary.getContent(),
                 diary.getEmotionType(),
+                diary.getDiaryDate(),
                 diary.getCreatedAt(),
                 diary.getUpdatedAt()
         );
@@ -136,9 +148,9 @@ public class DiaryService {
     @Transactional(readOnly = true)
     public List<DiaryDetailResponse> getCalendarDiaries(Long userId, YearMonth yearMonth) {
 
-        // 1. 해당 월의 시작일과 종료일 계산
-        LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
-        LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+        // 1. 해당 월의 시작일과 종료일 계산 (diaryDate 기준)
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end = yearMonth.plusMonths(1).atDay(1);
 
         // 2. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
         //    userId만으로 조회한다. 사용자 존재는 인증 통과 시점에 보장되고, 삭제된 사용자면 결과가 빈다.

@@ -69,6 +69,16 @@ scheduler:
     cleanup:
       cron: "0 0 3 * * *"
 
+# 서빙 중인 TLS 인증서 만료 감시 (자동 갱신 실패의 직접 신호 — docs/plan/cert-expiry-monitoring.md)
+cert:
+  check:
+    cron: "0 0 9 * * *"
+  sni-host: hearu.p-e.kr
+  target-host: nginx
+  target-port: 443
+  warn-threshold-days: 21
+  timeout: 3s
+
 management:
   endpoints:
     web:

@@ -75,7 +75,7 @@ public class DiaryServiceTest {
         );
         ReflectionTestUtils.setField(user, "userId", 1L);
 
-        diary = Diary.create(user, "내용", EmotionType.JOY);
+        diary = Diary.create(user, "내용", EmotionType.JOY, LocalDate.now());
         ReflectionTestUtils.setField(diary, "diaryId", 1L);
     }
 
@@ -87,7 +87,8 @@ public class DiaryServiceTest {
 
         @BeforeEach
         void setUp() {
-            request = new DiaryCreateRequest("내용", EmotionType.JOY);
+            // diaryDate 생략(null) → 오늘로 처리되는 기본 케이스
+            request = new DiaryCreateRequest("내용", EmotionType.JOY, null);
         }
 
         @Test
@@ -139,9 +140,10 @@ public class DiaryServiceTest {
 
             DiaryCreateResponse response = diaryService.createDiary(1L, request);
 
-            // 1. 응답값 검증
+            // 1. 응답값 검증 (diaryDate 생략 → 오늘)
             assertThat(response.content()).isEqualTo(request.content());
             assertThat(response.emotionType()).isEqualTo(request.emotionType());
+            assertThat(response.diaryDate()).isEqualTo(today);
 
             // 2. save() 호출 검증
             verify(diaryRepository).save(any(Diary.class));
@@ -159,6 +161,73 @@ public class DiaryServiceTest {
             assertThat(event.emotionType()).isEqualTo(request.emotionType());
             assertThat(event.nickname()).isEqualTo(user.getNickname());
             assertThat(event.toneType()).isEqualTo(ToneType.INFORMAL);
+        }
+
+        @Test
+        @DisplayName("과거 날짜(범위 내)로 작성하면 diaryDate에 그 날짜가 반영된다")
+        void backdated_within_range() {
+            user.updateNickname("용준");
+            LocalDate today = LocalDate.now();
+            LocalDate targetDate = today.minusDays(3);
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                1L, today.atStartOfDay(), today.plusDays(1).atStartOfDay()
+            )).willReturn(0);
+
+            DiaryCreateResponse response =
+                diaryService.createDiary(1L, new DiaryCreateRequest("내용", EmotionType.JOY, targetDate));
+
+            assertThat(response.diaryDate()).isEqualTo(targetDate);
+
+            ArgumentCaptor<Diary> diaryCaptor = ArgumentCaptor.forClass(Diary.class);
+            verify(diaryRepository).save(diaryCaptor.capture());
+            assertThat(diaryCaptor.getValue().getDiaryDate()).isEqualTo(targetDate);
+        }
+
+        @Test
+        @DisplayName("작성 가능 범위(오늘-7)를 벗어난 과거 날짜인 경우, 예외 처리")
+        void date_before_range() {
+            user.updateNickname("용준");
+            LocalDate outOfRange = LocalDate.now().minusDays(8);
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+
+            assertThatThrownBy(() -> diaryService.createDiary(
+                    1L, new DiaryCreateRequest("내용", EmotionType.JOY, outOfRange)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_DATE_OUT_OF_RANGE.getMessage());
+
+            verify(diaryRepository, never()).save(any(Diary.class));
+        }
+
+        @Test
+        @DisplayName("미래 날짜인 경우, 예외 처리")
+        void date_in_future() {
+            user.updateNickname("용준");
+            LocalDate future = LocalDate.now().plusDays(1);
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+
+            assertThatThrownBy(() -> diaryService.createDiary(
+                    1L, new DiaryCreateRequest("내용", EmotionType.JOY, future)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_DATE_OUT_OF_RANGE.getMessage());
+
+            verify(diaryRepository, never()).save(any(Diary.class));
+        }
+
+        @Test
+        @DisplayName("오늘 이미 10개를 작성했으면 과거 날짜여도 제한에 걸린다")
+        void limit_counts_today_even_for_backdated() {
+            user.updateNickname("용준");
+            LocalDate today = LocalDate.now();
+            given(userService.getUserOrThrow(1L)).willReturn(user);
+            given(diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                1L, today.atStartOfDay(), today.plusDays(1).atStartOfDay()
+            )).willReturn(10);
+
+            assertThatThrownBy(() -> diaryService.createDiary(
+                    1L, new DiaryCreateRequest("내용", EmotionType.JOY, today.minusDays(3))))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(DiaryErrorCode.DIARY_DAILY_LIMIT_EXCEEDED.getMessage());
         }
     }
 
@@ -233,8 +302,8 @@ public class DiaryServiceTest {
         @Test
         @DisplayName("일기가 없는 경우, 빈 목록 반환")
         void empty() {
-            LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
-            LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+            LocalDate start = yearMonth.atDay(1);
+            LocalDate end = yearMonth.plusMonths(1).atDay(1);
             given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(List.of());
 
             List<DiaryDetailResponse> result = diaryService.getCalendarDiaries(1L, yearMonth);
@@ -245,11 +314,12 @@ public class DiaryServiceTest {
         @Test
         @DisplayName("성공")
         void success() {
-            LocalDateTime start = yearMonth.atDay(1).atStartOfDay();
-            LocalDateTime end = yearMonth.plusMonths(1).atDay(1).atStartOfDay();
+            LocalDate start = yearMonth.atDay(1);
+            LocalDate end = yearMonth.plusMonths(1).atDay(1);
+            LocalDateTime createdAt = start.atStartOfDay();
             List<DiaryDetailResponse> diaries = List.of(
-                new DiaryDetailResponse(1L, "내용1", EmotionType.ANGER, start, start),
-                new DiaryDetailResponse(2L, "내용2", EmotionType.NEUTRAL, start, start)
+                new DiaryDetailResponse(1L, "내용1", EmotionType.ANGER, start, createdAt, createdAt),
+                new DiaryDetailResponse(2L, "내용2", EmotionType.NEUTRAL, start, createdAt, createdAt)
             );
             given(diaryRepository.findCalendarDiaries(1L, start, end)).willReturn(diaries);
 
