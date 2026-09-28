@@ -25,3 +25,6 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+jwt:
+  issuer: hearu-local

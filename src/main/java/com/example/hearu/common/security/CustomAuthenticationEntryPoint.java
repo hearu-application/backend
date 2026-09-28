@@ -8,6 +8,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.InvalidClaimException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
@@ -76,6 +77,11 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
 
             log.warn("서버에서 지원하지 않은 방식으로 서명된 JWT 토큰입니다.: {}", cause.getMessage());
             return SecurityServletErrorCode.UNSUPPORTED_JWT;
+        } else if (cause instanceof InvalidClaimException) {
+
+            // iss 불일치(다른 환경에서 발급) 또는 iss 누락(issuer 도입 전 발급)
+            log.warn("Access Token의 클레임이 이 서버의 기대값과 다릅니다: {}", cause.getMessage());
+            return SecurityServletErrorCode.INVALID_JWT_ISSUER;
         } else {
             // 500(INTERNAL_SERVER_ERROR)을 반환하는 경로이므로 ERROR가 맞다.
             log.error("Access Token 인증 과정 중 알 수 없는 서버 오류: {}", cause.getMessage(), cause);

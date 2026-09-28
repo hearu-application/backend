@@ -9,6 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.InvalidClaimException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
@@ -57,7 +58,8 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
             }
 
-        } catch (ExpiredJwtException | MalformedJwtException | UnsupportedJwtException | SignatureException e) {
+        } catch (ExpiredJwtException | MalformedJwtException | UnsupportedJwtException | SignatureException
+                 | InvalidClaimException e) {
             log.debug("[JWT] 토큰 검증 실패. reason={}, message={}",
                     e.getClass().getSimpleName(), e.getMessage());
             throw new BadCredentialsException("Invalid JWT", e);

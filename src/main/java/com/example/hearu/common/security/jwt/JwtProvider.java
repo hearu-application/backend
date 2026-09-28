@@ -28,6 +28,11 @@ public class JwtProvider {
     @Value("${jwt.refresh-token.expire-time}")
     private Duration refreshTokenExpireTime;
 
+    // 환경(local/dev/prod)마다 다른 값. 서명 키가 환경 간에 공유되더라도
+    // 다른 환경에서 발급된 토큰은 parseClaims에서 거부된다.
+    @Value("${jwt.issuer}")
+    private String issuer;
+
     private static final String BEARER_PREFIX = "Bearer ";
     private static final Pattern BEARER_PATTERN = Pattern.compile("^Bearer\\s+[A-Za-z0-9-_.]+$");
 
@@ -40,6 +45,7 @@ public class JwtProvider {
         Date expiry = new Date(now.getTime() + accessTokenExpireTime.toMillis());
 
         return Jwts.builder()
+            .setIssuer(issuer)
             .setSubject(String.valueOf(userId))
             .claim("type", "ACCESS")
             .setExpiration(expiry)
@@ -53,6 +59,7 @@ public class JwtProvider {
         Date expiry = new Date(now.getTime() + refreshTokenExpireTime.toMillis());
 
         return Jwts.builder()
+            .setIssuer(issuer)
             .setSubject(String.valueOf(userId))
             .claim("type", "REFRESH")
             .setExpiration(expiry)
@@ -64,6 +71,7 @@ public class JwtProvider {
     public Claims parseClaims(String token) {
         return Jwts.parserBuilder()
             .setSigningKey(jwtKeyManager.getKey())
+            .requireIssuer(issuer)
             .build()
             .parseClaimsJws(token)
             .getBody();

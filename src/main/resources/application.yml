@@ -44,6 +44,9 @@ jwt:
   refresh-token:
     expire-time: ${REFRESH_TOKEN_EXPIRE_TIME}
   secret-key: ${JWT_SECRET_KEY}
+  # 토큰 발급 환경 식별자. 발급 시 iss에 넣고 검증 시 일치를 요구한다.
+  # 프로필 yml이 덮어쓴다(hearu-local/dev/prod). 프로필 없이 떠도 prod 값과는 달라서 안전하다.
+  issuer: hearu-default
 
 llm:
   completion-url: ${LLM_COMPLETION_URL}

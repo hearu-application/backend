@@ -13,6 +13,7 @@ public enum SecurityServletErrorCode { // Security 관련 에러 코드 - 서블
     EXPIRED_JWT_TOKEN(HttpServletResponse.SC_UNAUTHORIZED, "만료된 JWT 토큰입니다."),
     UNSUPPORTED_JWT(HttpServletResponse.SC_BAD_REQUEST, "지원되지 않는 JWT 토큰입니다."),
     INVALID_JWT_FORMAT(HttpServletResponse.SC_UNAUTHORIZED, "잘못된 JWT 구조 입니다."),
+    INVALID_JWT_ISSUER(HttpServletResponse.SC_UNAUTHORIZED, "이 서버에서 발급하지 않은 JWT 토큰입니다."),
 
     // Security 관련 오류
     UNAUTHORIZED(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다."),

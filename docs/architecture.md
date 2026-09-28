@@ -76,7 +76,10 @@ graph TD
 1. **`MdcLoggingFilter`가 `JwtFilter`보다 먼저 실행된다.** 그래서 `[REQ][Start]` 로그에는 `userId`가 아직
    없고, 인증 이후 로그부터 붙는다. 요청 종료 시 `MDC.clear()`로 정리한다.
 2. **토큰이 없거나 access token이 아니면 예외를 던지지 않고 익명으로 통과시킨다.** 실제 거부는
-   `authorizeHttpRequests`에서 401/403으로 일어난다. 서명/만료 오류만 `BadCredentialsException`으로 승격된다.
+   `authorizeHttpRequests`에서 401/403으로 일어난다. 서명/만료/형식 오류와 **`iss` 불일치·누락**만
+   `BadCredentialsException`으로 승격된다. `iss`는 환경별(`hearu-local`/`dev`/`prod`, `jwt.issuer`)로 넣고
+   검증 시 일치를 요구한다. 서명 키가 환경 간에 공유되더라도 dev 발급 토큰이 prod에서 통과하지 않게 하는
+   방어선이다(키 분리를 대체하지 않는다: 키를 아는 쪽은 `iss`도 위조할 수 있다). 불일치는 401 `INVALID_JWT_ISSUER`.
 
 **인가 규칙** (`SecurityConfig`) — 위에서부터 먼저 매칭되는 것이 이긴다.
 
@@ -283,7 +286,7 @@ sequenceDiagram
 
 ```
 POST /api/v1/auth/token/refresh
-  1. RefreshTokenPolicy.validateAndGetClaims  — 서명·만료·타입 검증
+  1. RefreshTokenPolicy.validateAndGetClaims  — 서명·만료·iss·타입 검증
   2. DB의 저장된 토큰과 문자열 일치 검증        — 탈취된 구 토큰 차단
   3. access / refresh 재발급 (회전)
   4. 저장된 행을 새 토큰·새 만료로 갱신
