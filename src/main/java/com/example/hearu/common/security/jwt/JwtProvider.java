@@ -2,9 +2,9 @@ package com.example.hearu.common.security.jwt;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,38 +33,28 @@ public class JwtProvider {
     @Value("${jwt.issuer}")
     private String issuer;
 
-    private static final String BEARER_PREFIX = "Bearer ";
-    private static final Pattern BEARER_PATTERN = Pattern.compile("^Bearer\\s+[A-Za-z0-9-_.]+$");
+    private static final Pattern BEARER_PATTERN = Pattern.compile("^Bearer\\s+([A-Za-z0-9-_.]+)$");
 
     private final JwtKeyManager jwtKeyManager;
-    private static final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;
-
 
     public String createAccessToken(Long userId) {
-        Date now = new Date();
-        Date expiry = new Date(now.getTime() + accessTokenExpireTime.toMillis());
-
-        return Jwts.builder()
-            .setIssuer(issuer)
-            .setSubject(String.valueOf(userId))
-            .claim("type", "ACCESS")
-            .setExpiration(expiry)
-            .setIssuedAt(now)
-            .signWith(jwtKeyManager.getKey(), signatureAlgorithm)
-            .compact();
+        return createToken(userId, "ACCESS", accessTokenExpireTime);
     }
 
     public String createRefreshToken(Long userId) {
+        return createToken(userId, "REFRESH", refreshTokenExpireTime);
+    }
+
+    private String createToken(Long userId, String type, Duration expireTime) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + refreshTokenExpireTime.toMillis());
 
         return Jwts.builder()
             .setIssuer(issuer)
             .setSubject(String.valueOf(userId))
-            .claim("type", "REFRESH")
-            .setExpiration(expiry)
+            .claim("type", type)
             .setIssuedAt(now)
-            .signWith(jwtKeyManager.getKey(), signatureAlgorithm)
+            .setExpiration(new Date(now.getTime() + expireTime.toMillis()))
+            .signWith(jwtKeyManager.getKey(), SignatureAlgorithm.HS256)
             .compact();
     }
 
@@ -75,13 +65,6 @@ public class JwtProvider {
             .build()
             .parseClaimsJws(token)
             .getBody();
-    }
-
-    public LocalDateTime extractExpiration(Claims claims) {
-        return LocalDateTime.ofInstant(
-            claims .getExpiration().toInstant(),
-            ZoneId.systemDefault()
-        );
     }
 
     public LocalDateTime getRefreshTokenExpiresAt() {
@@ -100,7 +83,7 @@ public class JwtProvider {
         return Long.valueOf(claims.getSubject());
     }
 
-    public String extractTokenType(Claims claims) {
+    private String extractTokenType(Claims claims) {
         return claims.get("type", String.class);
     }
 
@@ -115,10 +98,10 @@ public class JwtProvider {
     public String resolveToken(HttpServletRequest request) {
         String authorizationHeader = request.getHeader("Authorization");
 
-        if (authorizationHeader == null ||
-                !BEARER_PATTERN.matcher(authorizationHeader).matches()) {
+        if (authorizationHeader == null) {
             return null;
         }
-        return authorizationHeader.substring(BEARER_PREFIX.length());
+        Matcher matcher = BEARER_PATTERN.matcher(authorizationHeader);
+        return matcher.matches() ? matcher.group(1) : null;
     }
 }

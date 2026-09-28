@@ -71,7 +71,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             return SecurityServletErrorCode.INVALID_JWT_FORMAT;
         } else if (cause instanceof ExpiredJwtException) {
 
-            log.warn("Access Token이 만료되었습니다: {}", cause.getMessage());
+            log.debug("Access Token이 만료되었습니다: {}", cause.getMessage());
             return SecurityServletErrorCode.EXPIRED_JWT_TOKEN;
         } else if (cause instanceof UnsupportedJwtException) {
 

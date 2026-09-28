@@ -37,7 +37,6 @@ public class RefreshTokenPolicy {
             throw new BusinessException(AuthErrorCode.EXPIRED_REFRESH_TOKEN);
 
         } catch (JwtException | IllegalArgumentException e) {
-            // MalformedJwtException, UnsupportedJwtException 포함
             log.warn("유효하지 않은 Refresh Token입니다. message={}", e.getMessage());
             throw new BusinessException(AuthErrorCode.INVALID_REFRESH_TOKEN);
         }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import io.jsonwebtoken.Claims;
@@ -97,6 +98,33 @@ class JwtProviderTest {
             // when & then
             assertThatThrownBy(() -> prodProvider.parseClaims(legacyToken))
                 .isInstanceOf(MissingClaimException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("Authorization 헤더에서 토큰 추출")
+    class ResolveToken {
+
+        @Test
+        @DisplayName("Bearer 뒤 공백이 여러 칸이어도 토큰만 추출한다")
+        void multipleSpaces_extractsTokenOnly() {
+            // given
+            MockHttpServletRequest request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Bearer   abc.def.ghi");
+
+            // when & then
+            assertThat(prodProvider.resolveToken(request)).isEqualTo("abc.def.ghi");
+        }
+
+        @Test
+        @DisplayName("Bearer 형식이 아니면 null을 반환한다")
+        void notBearer_returnsNull() {
+            // given
+            MockHttpServletRequest request = new MockHttpServletRequest();
+            request.addHeader("Authorization", "Basic abc");
+
+            // when & then
+            assertThat(prodProvider.resolveToken(request)).isNull();
         }
     }
 }
