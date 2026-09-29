@@ -46,14 +46,13 @@ public class AiResponseCaller {
         try {
             // 1. 프롬프트 생성
             String systemPrompt = promptBuilder.systemPromptBuild(event.nickname(), event.toneType());
-            String userPrompt = promptBuilder.userPromptBuild(event.content(), event.emotionType(), event.daysAgo());
-            log.debug("[AI][PromptBuilt] diaryId={}, systemPrompt={}, userPrompt={}, emotionType={}, toneType={}, daysAgo={}",
+            String userPrompt = promptBuilder.userPromptBuild(event.content(), event.emotionType());
+            log.debug("[AI][PromptBuilt] diaryId={}, systemPrompt={}, userPrompt={}, emotionType={}, toneType={}",
                 event.diaryId(),
                 LogMasker.textLength(systemPrompt),
                 LogMasker.textLength(userPrompt),
                 event.emotionType(),
-                event.toneType(),
-                event.daysAgo());
+                event.toneType());
 
             // 2. LLM 전달 메시지 구성
             List<Message> messages = List.of(

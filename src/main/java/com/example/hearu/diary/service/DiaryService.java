@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Slf4j
@@ -96,8 +95,7 @@ public class DiaryService {
                 diary.getEmotionType(),
                 user.getUserId(),
                 user.getNickname(),
-                user.getToneType(),
-                ChronoUnit.DAYS.between(targetDate, today)
+                user.getToneType()
             )
         );
 
@@ -212,9 +210,7 @@ public class DiaryService {
                         diary.getEmotionType(),
                         user.getUserId(),
                         user.getNickname(),
-                        user.getToneType(),
-                        // 재요청 시점 기준. 사용자가 응답을 읽는 날을 기준으로 해야 '어제' 같은 표현이 맞는다.
-                        ChronoUnit.DAYS.between(diary.getDiaryDate(), LocalDate.now())
+                        user.getToneType()
                 )
         );
     }
