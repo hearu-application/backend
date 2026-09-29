@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import com.example.hearu.diary.domain.EmotionType;
 import com.example.hearu.user.domain.ToneType;
@@ -115,10 +117,27 @@ public class PromptBuilderTest {
         @Test
         @DisplayName("일기 원문과 감정 표시명을 그대로 담는다")
         void includes_content_and_emotion() {
-            String prompt = promptBuilder.userPromptBuild("오늘은 좋은 하루였다", EmotionType.JOY);
+            String prompt = promptBuilder.userPromptBuild("오늘은 좋은 하루였다", EmotionType.JOY, 0);
 
             assertThat(prompt).contains("입력: 오늘은 좋은 하루였다");
             assertThat(prompt).contains("감정: " + EmotionType.JOY.getDisplayName());
+        }
+
+        @Test
+        @DisplayName("오늘 일기는 날짜 항목을 넣지 않는다")
+        void today_has_no_date() {
+            String prompt = promptBuilder.userPromptBuild("오늘은 좋은 하루였다", EmotionType.JOY, 0);
+
+            assertThat(prompt).doesNotContain("날짜:");
+        }
+
+        @ParameterizedTest(name = "{0}일 전 → {1}")
+        @CsvSource({"1, 어제", "2, 그저께", "3, 며칠 전", "30, 며칠 전"})
+        @DisplayName("과거 날짜 일기는 날짜 차이를 상대 표현으로 담는다")
+        void past_diary_has_relative_date(long daysAgo, String expected) {
+            String prompt = promptBuilder.userPromptBuild("오늘은 좋은 하루였다", EmotionType.JOY, daysAgo);
+
+            assertThat(prompt).contains("날짜: " + expected);
         }
     }
 }

@@ -161,6 +161,7 @@ public class DiaryServiceTest {
             assertThat(event.emotionType()).isEqualTo(request.emotionType());
             assertThat(event.nickname()).isEqualTo(user.getNickname());
             assertThat(event.toneType()).isEqualTo(ToneType.INFORMAL);
+            assertThat(event.daysAgo()).isZero();
         }
 
         @Test
@@ -182,6 +183,11 @@ public class DiaryServiceTest {
             ArgumentCaptor<Diary> diaryCaptor = ArgumentCaptor.forClass(Diary.class);
             verify(diaryRepository).save(diaryCaptor.capture());
             assertThat(diaryCaptor.getValue().getDiaryDate()).isEqualTo(targetDate);
+
+            ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
+            verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+            assertThat(eventCaptor.getValue().daysAgo()).isEqualTo(3);
         }
 
         @Test
@@ -445,6 +451,7 @@ public class DiaryServiceTest {
             assertThat(event.userId()).isEqualTo(user.getUserId());
             assertThat(event.nickname()).isEqualTo(user.getNickname());
             assertThat(event.toneType()).isEqualTo(user.getToneType());
+            assertThat(event.daysAgo()).isZero();
         }
     }
 }

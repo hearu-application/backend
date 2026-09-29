@@ -48,7 +48,7 @@ public class AiResponseCallerTest {
 
     private static DiaryAiResponseRequestedEvent eventWith(ToneType toneType) {
         return new DiaryAiResponseRequestedEvent(
-            1L, "오늘은 좋은 하루였다", EmotionType.JOY, 1L, "용준", toneType);
+            1L, "오늘은 좋은 하루였다", EmotionType.JOY, 1L, "용준", toneType, 0);
     }
 
     @BeforeEach
