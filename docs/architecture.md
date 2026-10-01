@@ -106,6 +106,8 @@ graph TD
     subgraph user
         UserSvc[UserService] --> RtSvc
         SecSvc[UserSecurityService]
+        PurgeSched[WithdrawalPurgeScheduler] --> PurgeSvc[WithdrawalPurgeService]
+        PurgeSvc --> RtSvc
     end
 
     subgraph diary
@@ -121,6 +123,7 @@ graph TD
     end
 
     DiarySvc --> UserSvc
+    PurgeSvc --> DiarySvc
     DiarySvc --> ArSvc
     DiarySvc --> AfSvc
     AuthSvc --> UserRepo[(UserRepository)]
@@ -137,7 +140,10 @@ graph TD
 - `ai` → `user`는 **`ToneType` enum 참조 하나뿐이다**(`PromptBuilder`, 이벤트 레코드). `AiResponseCaller`가
   실행 중 `UserService`를 호출하지 않는다 — 말투 값은 이벤트 발행 시점에 확정되어 실려 온다.
 - `AiFeedbackService` → `AiResponseService` 방향이 이미 있으므로, **AI 응답 삭제가 피드백을 연쇄
-  삭제하면 순환이 된다.** 그래서 soft delete 전파는 `DiaryService.deleteDiary` 한 곳이 관장한다.
+  삭제하면 순환이 된다.** 그래서 soft delete 전파는 `DiaryService.deleteDiary`, 탈퇴 유저의 하드 삭제는
+  `DiaryService.hardDeleteAllByUserId` — 하위 데이터 삭제는 `DiaryService` 한 곳이 관장한다.
+- `DiaryService` → `UserService` 방향이 이미 있으므로, **탈퇴 유저 하드 삭제는 `UserService`가 아니라
+  별도 빈 `WithdrawalPurgeService`가 맡는다**(`UserService`가 `DiaryService`를 부르면 순환).
 - `auth`는 `UserService`가 아니라 `UserRepository`를 직접 쓴다(로그인은 사용자 생성까지 포함하므로).
 
 ---
@@ -261,9 +267,13 @@ sequenceDiagram
     EXT-->>P: 공개키
     P-->>AS: OauthUserInfo(sub, email)
 
-    alt 기존 사용자
-        AS->>DB: findByProviderAndProviderUserId
-    else 신규
+    AS->>DB: findByProviderAndProviderUserIdAndDeletedAtIsNull
+    alt 활성 사용자 있음
+        Note right of AS: 기존 사용자 로그인
+    else 없음 + withdrawalRestoreSupported=true + 유예 중 탈퇴 계정 있음
+        AS->>DB: findLatestRestorableForUpdate (행 락)
+        AS-->>C: { pendingWithdrawal: { purgeAt } }<br/>토큰 발급·가입 없음
+    else 그 외 (구버전 앱은 항상 여기)
         Note right of AS: email 없으면<br/>MISSING_REQUIRED_CLAIMS
         AS->>DB: User.create(email, provider, sub) 저장
     end
@@ -274,11 +284,26 @@ sequenceDiagram
     AS-->>C: { accessToken, refreshToken, nickname }
 ```
 
+**탈퇴 계정 복구** — `POST /api/v1/auth/oauth/{provider}/restore` (같은 `idToken`)
+
+```
+1. id_token 검증 (로그인과 동일)
+2. 활성 사용자가 있으면 복구하지 않고 그 계정으로 로그인 (중복 요청 / 유예 중 이미 재가입)
+3. 유예 중 탈퇴 계정 중 최신 1건을 행 락으로 조회 — 없으면 WITHDRAWAL_NOT_RESTORABLE(404)
+4. User.restore(sub) — deletedAt=null, providerUserId를 원래 sub로
+5. access / refresh 토큰 발급
+```
+
 **주의 지점:**
 
 - **`email`은 신규 가입 시에만 필수다.** Apple은 최초 인증에서만 email claim을 내려주므로,
   재로그인 시 email이 없다고 실패시키면 안 된다.
 - `RefreshToken`의 **PK가 `userId`** 라서 사용자당 세션이 1개다. 새 로그인은 기존 토큰을 덮어쓴다.
+- **복구는 앱이 명시적으로 요청할 때만 한다.** `withdrawalRestoreSupported`를 보내지 않는 구버전 앱은
+  유예 중이어도 기존처럼 신규 가입된다(복구 안내 화면이 없어 사용자 모르게 되살리지 않기 위해).
+  `pendingWithdrawal`은 null이면 JSON 키 자체가 빠져, 구버전 앱이 받는 응답은 바뀌지 않는다.
+- 서버는 id_token의 재사용(nonce·jti)을 막지 않으므로, 로그인과 복구에 **같은 id_token을 쓸 수 있다.**
+  만료됐으면 provider 검증에서 401이 나고, 앱은 소셜 로그인을 다시 해야 한다.
 - `RefreshToken`은 **`BaseEntity`를 상속하지 않는다**(만료 시 하드 삭제 대상). 의도된 예외이며
   새 엔티티의 선례로 삼지 않는다.
 
@@ -302,16 +327,37 @@ graph TD
     end
 
     subgraph U["회원 탈퇴 · DELETE /api/v1/users"]
-        U1["RefreshToken 하드 삭제"] --> U2["User.softDelete()"]
+        U1["RefreshToken 하드 삭제"] --> U2["User.softDelete()<br/>providerUserId → sub:deleted:uuid"]
     end
+
+    subgraph P["유예 만료 · WithdrawalPurgeScheduler (유저 단위 트랜잭션)"]
+        P0["User 행 락 + 만료 재확인<br/>(복구됐으면 건너뜀)"] --> P1["AiFeedback 하드 삭제"]
+        P1 --> P2["AiResponse 하드 삭제"]
+        P2 --> P3["Diary 하드 삭제"]
+        P3 --> P4["RefreshToken 하드 삭제"]
+        P4 --> P5["User 하드 삭제"]
+    end
+
+    U --> P
 ```
 
 - 삭제 전파를 **`DiaryService.deleteDiary` 한 곳**에 모은 것은 순환 참조 회피 때문이다(§3).
 - AI 응답/피드백이 없어도 삭제는 성공해야 하므로 **없으면 예외 없이 건너뛴다.**
-- **회원 탈퇴는 `User`만 soft delete하고 일기는 건드리지 않는다.** 데이터 보존 정책이 정해지면 재검토 대상.
+- **회원 탈퇴는 유예 기간(`user.withdrawal.grace-period`, 24h) 동안 `User`만 soft delete한다.** 일기·AI 응답·
+  피드백은 그대로 두어 복구 시 되살아난다. 유예가 지나면 스케줄러가 사용자의 데이터를 **soft delete 여부와
+  관계없이 전부** 하드 삭제한다.
+- 하드 삭제 순서는 **피드백 → AI 응답 → 일기 → refresh token → 유저**다. FK에 `ON DELETE`가 없어
+  부모부터 지우면 실패한다.
+- 유예 판정은 `WithdrawalPolicy`의 cutoff(`now - 유예 기간`) 하나로 나눈다. `deletedAt >= cutoff`면 복구 가능,
+  `deletedAt < cutoff`면 삭제 대상 — 반열린 구간이라 겹치지 않는다. 복구와 삭제는 같은 `User` 행 락을 잡아
+  직렬화되고, 삭제 쪽은 락을 잡은 뒤 조건을 다시 확인한다.
+- **탈퇴 시 `providerUserId`를 `sub:deleted:<uuid>`로 바꾸는 동작은 유지한다.** 유니크 키를 비워 재가입을
+  허용하고, 이 기능이 없는 구 서버(롤백)가 같은 sub로 가입할 때 유니크 키 위반이 나지 않게 하기 위해서다.
+  복구 대상은 `sub:deleted:` 접두사로 찾는다.
 - **탈퇴해도 이미 발급된 access token은 만료까지 유효하다.** `JwtFilter`는 DB를 조회하지 않고, 일기
   조회 경로도 사용자 존재를 확인하지 않는다(`getUserOrThrow`는 `createDiary`·`requestAiResponse`에만
-  있다). 그래서 탈퇴 직후 토큰 만료 전까지는 본인 일기가 계속 조회된다.
+  있다). 그래서 탈퇴 직후 토큰 만료 전까지는 본인 일기가 계속 조회된다. 유예 중 피드백 작성 등으로
+  하드 삭제가 FK 위반으로 실패하면 그 유저만 다음 실행에서 다시 시도된다.
 
 ### 4.7 스케줄러
 
@@ -320,10 +366,19 @@ RefreshTokenCleanupScheduler   cron: 0 0 3 * * *  (매일 03:00)
   → RefreshTokenService.deleteExpiredRefreshTokens()   @Transactional
   → DataAccessException이면 @Retryable로 1회 재시도
   → 소진 시 @Recover → log.error + Discord 알림
+
+WithdrawalPurgeScheduler       cron: 0 0 * * * *  (매시 정각)
+  → WithdrawalPurgeService.findPurgeTargetIds(cutoff)  최대 500명, 오래된 순
+  → 유저마다 WithdrawalPurgeService.purge()            @Transactional (유저 단위)
+  → 실패한 유저는 log.error 후 계속, 끝나고 Discord 알림 — 다음 실행에서 자동 재시도
 ```
 
 **`@Retryable`은 스케줄러(비트랜잭션)에, `@Transactional`은 서비스에 둔다.** 한 메서드에 겹치면
 롤백된 트랜잭션 안에서 재시도가 도는 위험이 있다. `AiResponseCaller`와 동일한 패턴이다.
+
+`WithdrawalPurgeScheduler`는 `@Retryable`이 없다. 실패한 유저는 대상 조건을 그대로 만족해 다음 실행이
+다시 집어 가고, 유저 단위 트랜잭션이라 한 명의 실패가 나머지를 막지 않는다. 두 스케줄러 모두 분산 락이
+없어 **단일 인스턴스 전제**다(삭제 쪽은 행 락 + 재확인이라 중복 실행돼도 결과는 같다).
 
 ---
 
@@ -377,12 +432,13 @@ awaitTerminationSeconds           30
 
 | 도메인 | 메서드 · 경로 | 비고 |
 |---|---|---|
-| auth | `POST /api/v1/auth/oauth/{provider}` | permitAll · 가입 겸 로그인 |
+| auth | `POST /api/v1/auth/oauth/{provider}` | permitAll · 가입 겸 로그인 · `withdrawalRestoreSupported`면 유예 중 계정 안내 |
+| auth | `POST /api/v1/auth/oauth/{provider}/restore` | permitAll · 유예 중 탈퇴 계정 복구 |
 | auth | `POST /api/v1/auth/token/refresh` | permitAll · 토큰 회전 |
 | diary | `POST /api/v1/diaries` | 하루 10건 제한(제출일 기준) · 과거 7일 backdating · AI 이벤트 발행 |
 | diary | `GET /api/v1/diaries/{diaryId}` | |
 | diary | `GET /api/v1/diaries/today/count` | 제출일(`createdAt`) 기준 |
-| diary | `GET /api/v1/diaries/calendar` | DTO 직접 조회(N+1 회피) · `diaryDate`(대상 날짜) 기준 |
+| diary | `GET /api/v1/diaries/calendar` | DTO 직접 조회 · `diaryDate`(대상 날짜) 기준 |
 | diary | `DELETE /api/v1/diaries/{diaryId}` | 204 · AI 응답·피드백 전파 |
 | ai-response | `POST /api/v1/diaries/{diaryId}/ai-response` | 재요청 · COMPLETED면 거부 · **`DiaryController`** |
 | ai-response | `GET /api/v1/diaries/{diaryId}/ai-response` | **폴링 대상** · **`DiaryController`** |
@@ -391,7 +447,7 @@ awaitTerminationSeconds           30
 | user | `PATCH /api/v1/users/nickname` | |
 | user | `PATCH /api/v1/users/ai-settings` | `toneType` |
 | user | `POST /api/v1/users/logout` | refresh token 삭제 |
-| user | `DELETE /api/v1/users` | 204 · 탈퇴 |
+| user | `DELETE /api/v1/users` | 204 · 탈퇴(유예 시작) |
 | user | `PATCH /api/v1/users/lock-setting/{enable,disable,password}` | 앱 잠금 |
 | user | `POST /api/v1/users/lock-setting/verify` | 앱 잠금 검증 |
 

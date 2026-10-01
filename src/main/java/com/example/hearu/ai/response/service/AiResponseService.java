@@ -39,6 +39,10 @@ public class AiResponseService {
             );
     }
 
+    public int hardDeleteAllByUserId(Long userId) {
+        return aiResponseRepository.deleteAllByUserId(userId);
+    }
+
     @Transactional(readOnly = true)
     public AiResponseResponse getAiResponse(Long userId, Long diaryId) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);

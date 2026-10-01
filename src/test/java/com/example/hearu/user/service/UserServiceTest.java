@@ -202,6 +202,8 @@ public class UserServiceTest {
             // then
             verify(refreshTokenService, times(1)).deleteRefreshToken(1L);
             assertThat(user.getDeletedAt()).isNotNull();
+            // 유니크 키를 비워 재가입을 허용하면서, 복구 시 원래 sub로 찾을 수 있는 형식이어야 한다
+            assertThat(user.getProviderUserId()).startsWith("1234567890:deleted:");
         }
     }
 

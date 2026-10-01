@@ -29,6 +29,10 @@ public class AiFeedbackService {
             );
     }
 
+    public int hardDeleteAllByUserId(Long userId) {
+        return aiFeedbackRepository.deleteAllByUserId(userId);
+    }
+
     public void createFeedback(Long userId, Long diaryId, AiFeedbackCreateRequest request) {
         AiResponse aiResponse = aiResponseService.getOwnedAiResponse(userId, diaryId);
 

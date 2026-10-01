@@ -152,7 +152,7 @@ public class DiaryService {
         LocalDate start = yearMonth.atDay(1);
         LocalDate end = yearMonth.plusMonths(1).atDay(1);
 
-        // 2. DB에서 해당 월의 일기 목록을 DTO로 직접 조회 (엔티티 미로딩 → aiResponse N+1 회피)
+        // 2. DB에서 해당 월의 일기 목록을 DTO로 직접 조회
         //    userId만으로 조회한다. 사용자 존재는 인증 통과 시점에 보장되고, 삭제된 사용자면 결과가 빈다.
         List<DiaryDetailResponse> diaries = diaryRepository.findCalendarDiaries(userId, start, end);
 
@@ -178,6 +178,15 @@ public class DiaryService {
         log.debug("일기 soft delete 완료. userId={}, diaryId={}", userId, diaryId);
     }
 
+    // 탈퇴 유저 하드 삭제. FK에 ON DELETE가 없으므로 자식부터 피드백 → AI 응답 → 일기 순으로 지운다.
+    // soft delete 전파(deleteDiary)와 같은 이유로 하위 데이터 삭제를 여기 한 곳에서 관장한다.
+    public void hardDeleteAllByUserId(Long userId) {
+        int feedbacks = aiFeedbackService.hardDeleteAllByUserId(userId);
+        int aiResponses = aiResponseService.hardDeleteAllByUserId(userId);
+        int diaries = diaryRepository.deleteAllByUserId(userId);
+        log.debug("사용자 일기 데이터 하드 삭제 완료. userId={}, diaries={}, aiResponses={}, feedbacks={}",
+                userId, diaries, aiResponses, feedbacks);
+    }
 
     private Diary getDiaryOrThrow(Long userId, Long diaryId) {
         return diaryRepository.findByDiaryIdAndDeletedAtIsNull(diaryId)

@@ -29,8 +29,10 @@ POST /api/v1/diaries
 - **API는 AI 응답을 기다리지 않는다.** 클라이언트 폴링이 전제이므로, 동기 응답으로 바꾸면
   클라이언트 계약이 깨진다.
 - **`ai` → `diary` 서비스 의존은 없다.** 이벤트가 일기 본문·닉네임까지 실어 나르는 이유가 이것이다.
-- **soft delete 전파는 `DiaryService.deleteDiary` 한 곳이 관장한다.**
+- **일기 하위 데이터 삭제(soft delete 전파·탈퇴 하드 삭제)는 `DiaryService` 한 곳이 관장한다.**
   `AiFeedbackService` → `AiResponseService` 의존이 이미 있어, AI 응답이 피드백을 연쇄 삭제하면 순환이 된다.
+- **탈퇴는 유예 후 하드 삭제다. 복구는 앱이 명시적으로 요청할 때만 한다.** 구버전 앱은 복구 안내 화면이
+  없으므로 기존처럼 신규 가입시킨다. 탈퇴 시 `providerUserId` 변경은 롤백된 구 서버와의 호환을 위해 유지한다.
 - **`AiResponseCaller`는 리스너와 별도 빈이다.** 자기 호출이면 `@Retryable` 프록시가 걸리지 않는다.
 - **`MdcLoggingFilter`가 `JwtFilter`보다 먼저 실행된다.** 그래서 요청 시작 로그에는 `userId`가 없다.
 - **`COMPLETED`는 종착점이다.** 재요청은 거부된다 — 기존 응답 보존과 LLM 과금 방지.

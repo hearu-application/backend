@@ -46,6 +46,23 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/oauth/{provider}/restore")
+    public ResponseEntity<ApiResponse<AuthResponse>> restore(
+        @PathVariable ProviderType provider,
+        @RequestBody @Valid OauthRequest request
+    ) {
+        AuthResponse authResponse = authService.restore(
+                provider,
+                request
+        );
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "탈퇴한 계정을 복구했습니다.",
+                        authResponse
+                )
+        );
+    }
+
     @PostMapping("/token/refresh")
     public ResponseEntity<ApiResponse<RefreshTokenResponse>> getAccessToken(
             @RequestBody @Valid RefreshTokenRequest request

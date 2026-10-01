@@ -1,5 +1,6 @@
 package com.example.hearu.user.domain;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.example.hearu.common.entity.BaseEntity;
@@ -54,10 +55,27 @@ public class User extends BaseEntity {
         return new User(email, provider, providerUserId);
     }
 
+    // 탈퇴 시 providerUserId 뒤에 붙는 표식. 유니크 키(provider_user_id)를 비워 같은 소셜 계정의
+    // 재가입을 허용하고, 유예 중 복구할 때는 이 접두사(원래 sub + 표식)로 탈퇴 계정을 찾는다.
+    private static final String WITHDRAWN_MARKER = ":deleted:";
+
+    public static String withdrawnProviderUserIdPrefix(String sub) {
+        return sub + WITHDRAWN_MARKER;
+    }
+
     @Override
     public void softDelete() {
         super.softDelete();
-        this.providerUserId = this.providerUserId + ":deleted:" + UUID.randomUUID();
+        this.providerUserId = withdrawnProviderUserIdPrefix(this.providerUserId) + UUID.randomUUID();
+    }
+
+    public void restore(String sub) {
+        undoSoftDelete();
+        this.providerUserId = sub;
+    }
+
+    public boolean isWithdrawnBefore(LocalDateTime cutoff) {
+        return getDeletedAt() != null && getDeletedAt().isBefore(cutoff);
     }
 
     public void updateNickname(String nickname) {

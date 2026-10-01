@@ -370,6 +370,22 @@ public class DiaryServiceTest {
     }
 
     @Nested
+    @DisplayName("사용자 일기 데이터 하드 삭제")
+    class HardDeleteAllByUserId {
+
+        @Test
+        @DisplayName("FK 순서대로 피드백 → AI 응답 → 일기를 삭제한다")
+        void deletes_children_first() {
+            diaryService.hardDeleteAllByUserId(1L);
+
+            InOrder inOrder = Mockito.inOrder(aiFeedbackService, aiResponseService, diaryRepository);
+            inOrder.verify(aiFeedbackService).hardDeleteAllByUserId(1L);
+            inOrder.verify(aiResponseService).hardDeleteAllByUserId(1L);
+            inOrder.verify(diaryRepository).deleteAllByUserId(1L);
+        }
+    }
+
+    @Nested
     @DisplayName("AI 응답 요청")
     class RequestAiResponse {
 

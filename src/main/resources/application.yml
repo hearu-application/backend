@@ -71,6 +71,15 @@ scheduler:
   refresh-token:
     cleanup:
       cron: "0 0 3 * * *"
+  # 유예가 끝난 탈퇴 유저 하드 삭제 (docs/withdrawal-grace-period.md)
+  withdrawal:
+    purge:
+      cron: "0 0 * * * *"
+
+# 회원 탈퇴 유예 기간. 이 기간 안에는 복구할 수 있고, 지나면 하드 삭제 대상이 된다.
+user:
+  withdrawal:
+    grace-period: 24h
 
 # 서빙 중인 TLS 인증서 만료 감시 (자동 갱신 실패의 직접 신호 — docs/plan/cert-expiry-monitoring.md)
 cert:
