@@ -26,7 +26,7 @@
 | 유예 중 복구 UX | X는 30일 유예 중 로그인하면 "재활성화할지" 확인 안내 후 복구 | [X Help](https://help.x.com/managing-your-account/how-to-deactivate-twitter-account) |
 | 복구 API 분리 | Playnanoo는 탈퇴 조회와 복구 API를 따로 두고 클라이언트가 명시적으로 호출 | [Playnanoo](https://document.playnanoo.com/api/unity/account/withdraw/restore/) |
 
-24시간 유예 + 매시 정리는 5일 이내 파기 기준 안에 든다.
+24시간 유예 + 매일 정리는 5일 이내 파기 기준 안에 든다.
 
 ---
 

@@ -74,7 +74,7 @@ scheduler:
   # 유예가 끝난 탈퇴 유저 하드 삭제 (docs/withdrawal-grace-period.md)
   withdrawal:
     purge:
-      cron: "0 0 * * * *"
+      cron: "0 0 4 * * *"
 
 # 회원 탈퇴 유예 기간. 이 기간 안에는 복구할 수 있고, 지나면 하드 삭제 대상이 된다.
 user:

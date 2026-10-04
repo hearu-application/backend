@@ -343,7 +343,7 @@ graph TD
 
 - 삭제 전파를 **`DiaryService.deleteDiary` 한 곳**에 모은 것은 순환 참조 회피 때문이다(§3).
 - AI 응답/피드백이 없어도 삭제는 성공해야 하므로 **없으면 예외 없이 건너뛴다.**
-- **회원 탈퇴는 유예 기간(`user.withdrawal.grace-period`, 24h) 동안 `User`만 soft delete한다.** 일기·AI 응답·
+- **회원 탈퇴는 유예 기간(`user.withdrawal.grace-period`, base 24h · prod 14d) 동안 `User`만 soft delete한다.** 일기·AI 응답·
   피드백은 그대로 두어 복구 시 되살아난다. 유예가 지나면 스케줄러가 사용자의 데이터를 **soft delete 여부와
   관계없이 전부** 하드 삭제한다.
 - 하드 삭제 순서는 **피드백 → AI 응답 → 일기 → refresh token → 유저**다. FK에 `ON DELETE`가 없어
@@ -367,7 +367,7 @@ RefreshTokenCleanupScheduler   cron: 0 0 3 * * *  (매일 03:00)
   → DataAccessException이면 @Retryable로 1회 재시도
   → 소진 시 @Recover → log.error + Discord 알림
 
-WithdrawalPurgeScheduler       cron: 0 0 * * * *  (매시 정각)
+WithdrawalPurgeScheduler       cron: 0 0 4 * * *  (매일 04:00)
   → WithdrawalPurgeService.findPurgeTargetIds(cutoff)  최대 500명, 오래된 순
   → 유저마다 WithdrawalPurgeService.purge()            @Transactional (유저 단위)
   → 실패한 유저는 log.error 후 계속, 끝나고 Discord 알림 — 다음 실행에서 자동 재시도

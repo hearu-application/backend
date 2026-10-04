@@ -27,3 +27,7 @@ springdoc:
 
 jwt:
   issuer: hearu-prod
+
+user:
+  withdrawal:
+    grace-period: 14d
