@@ -48,7 +48,7 @@ public class User extends BaseEntity {
         this.email = email;
         this.provider = provider;
         this.providerUserId = providerUserId;
-        this.toneType = ToneType.HONORIFIC;
+        this.toneType = ToneType.INFORMAL;
     }
 
     public static User create(String email, ProviderType provider, String providerUserId) {

@@ -129,8 +129,8 @@ public class DiaryServiceTest {
         @DisplayName("성공")
         void success() {
             user.updateNickname("용준");
-            // 기본값(HONORIFIC)과 다른 값을 넣어야 이벤트에 실린 값이 전달된 것인지 확인된다
-            user.updateToneType(ToneType.INFORMAL);
+            // 기본값(INFORMAL)과 다른 값을 넣어야 이벤트에 실린 값이 전달된 것인지 확인된다
+            user.updateToneType(ToneType.HONORIFIC);
             LocalDate today = LocalDate.now();
             given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.countAllByUser_UserIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
@@ -159,7 +159,7 @@ public class DiaryServiceTest {
             assertThat(event.content()).isEqualTo(request.content());
             assertThat(event.emotionType()).isEqualTo(request.emotionType());
             assertThat(event.nickname()).isEqualTo(user.getNickname());
-            assertThat(event.toneType()).isEqualTo(ToneType.INFORMAL);
+            assertThat(event.toneType()).isEqualTo(ToneType.HONORIFIC);
         }
 
         @Test

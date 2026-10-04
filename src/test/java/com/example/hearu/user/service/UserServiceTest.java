@@ -229,13 +229,14 @@ public class UserServiceTest {
         void update_ai_settings_tone_type_present() {
             // given
             given(userRepository.findByUserIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(user));
-            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(ToneType.INFORMAL);
+            // 기본값(INFORMAL)과 다른 값이어야 실제로 바뀌었는지 확인된다
+            UpdateAiSettingsRequest request = new UpdateAiSettingsRequest(ToneType.HONORIFIC);
 
             // when
             userService.updateAiSettings(1L, request);
 
             // then
-            assertThat(user.getToneType()).isEqualTo(ToneType.INFORMAL);
+            assertThat(user.getToneType()).isEqualTo(ToneType.HONORIFIC);
         }
 
         @Test
