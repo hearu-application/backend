@@ -75,6 +75,12 @@ scheduler:
   withdrawal:
     purge:
       cron: "0 0 4 * * *"
+  # 고착된 PENDING AI 응답 회수 (docs/plan/ai-response-stuck-sweep.md)
+  ai-response:
+    sweep:
+      cron: "0 0 * * * *"
+      # 이 시간 이상 갱신이 없는 PENDING만 회수한다. 처리 중인 행(최악 약 47초 + 큐 대기)을 집어 가지 않기 위한 여유.
+      stale-after: 10m
 
 # 회원 탈퇴 유예 기간. 이 기간 안에는 복구할 수 있고, 지나면 하드 삭제 대상이 된다.
 user:

@@ -1,10 +1,19 @@
 package com.example.hearu.ai.response.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import com.example.hearu.ai.response.domain.AiResponse;
 import com.example.hearu.ai.response.domain.AiResponseErrorCode;
+import com.example.hearu.ai.response.domain.AiResponseStatusType;
+import com.example.hearu.ai.response.domain.AttemptStartResult;
 import com.example.hearu.ai.response.dto.response.AiResponseResponse;
 import com.example.hearu.ai.response.infrastructure.repository.AiResponseRepository;
 import com.example.hearu.diary.domain.Diary;
+import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
+import com.example.hearu.user.domain.User;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +29,15 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AiResponseService {
 
+    // 일기 1건당 실행 상한(최초 1번 + 회수 2번). 실행 1번은 @Retryable로 LLM을 최대 2번 호출한다.
+    // 시작 시점에 세므로 실행이 어떻게 끝나든 이 상한을 넘겨 LLM을 부르지 않는다(수동 재요청 제외).
+    static final int MAX_EXECUTIONS = 3;
+
+    // 회수 스케줄러 1회 실행에서 다시 실행할 최대 건수
+    private static final int SWEEP_BATCH_SIZE = 100;
+
     private final AiResponseRepository aiResponseRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     // 일기 생성 시 PENDING 상태의 AI 응답을 함께 만든다. (과거에는 Diary의 cascade로 생성했으나,
     // 역방향 @OneToOne 매핑을 제거하면서 생성 책임을 이쪽으로 옮겼다)
@@ -68,26 +85,69 @@ public class AiResponseService {
         aiResponse.completeResponse(content);
     }
 
-    // AI 응답 재요청 시 이벤트 발행 전에 상태를 PENDING으로 되돌린다.
-    // 이미 COMPLETED면 기존 응답을 보존하고 불필요한 LLM 호출을 막기 위해 재요청 자체를 거부한다.
-    public void markPending(Long diaryId) {
+    // AI 응답 재요청(구버전 앱의 재시도 버튼). FAILED일 때만 PENDING으로 되돌리고 true를 반환한다.
+    // COMPLETED는 기존 응답 보존, PENDING은 회수 스케줄러가 책임지므로 아무것도 하지 않는다(멱등).
+    public boolean requestRetryIfFailed(Long diaryId) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
 
-        if (aiResponse.isCompleted()) {
-            log.warn("이미 완료된 AI 응답에 재요청이 들어왔습니다. diaryId={}", diaryId);
-            throw new BusinessException(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED);
+        if (!aiResponse.isFailed()) {
+            log.debug("FAILED가 아니라 AI 응답 재요청을 무시. diaryId={}, status={}",
+                diaryId, aiResponse.getAiResponseStatusType());
+            return false;
         }
 
-        // PENDING(처리 중)인 경우도 그대로 재발행한다. 큐 포화·재시작으로 유실된 작업을
-        // 사용자가 직접 되살릴 수 있는 유일한 경로이기 때문이다.
-        log.debug("AI 응답 재요청으로 상태를 PENDING으로 초기화. diaryId={}, 이전 상태={}",
-            diaryId, aiResponse.getAiResponseStatusType());
-        aiResponse.retryResponse();
+        log.debug("AI 응답 재요청으로 상태를 PENDING으로 초기화. diaryId={}, 이전 attemptCount={}",
+            diaryId, aiResponse.getAttemptCount());
+        aiResponse.retryResponse(MAX_EXECUTIONS);
+        return true;
     }
 
-    public void markFailed(Long diaryId) {
+    // 실행 직전에 시작 횟수를 센다(리스너가 호출). 상한을 다 썼으면 LLM 없이 FAILED로 확정된다.
+    // 로그·알림은 호출부가 남긴다.
+    public AttemptStart startAttempt(Long diaryId) {
         AiResponse aiResponse = getAiResponseOrThrow(diaryId);
-        aiResponse.failResponse();
+        AttemptStartResult result = aiResponse.startAttempt(MAX_EXECUTIONS);
+        return new AttemptStart(result, aiResponse.getAttemptCount());
+    }
+
+    // 실행 실패를 기록한다. 상한에 닿았으면 FAILED로 확정된다. 로그·알림은 호출부(AiResponseCaller)가 남긴다.
+    public FailedAttempt recordFailure(Long diaryId) {
+        AiResponse aiResponse = getAiResponseOrThrow(diaryId);
+        boolean finalFailure = aiResponse.recordFailure(MAX_EXECUTIONS);
+        return new FailedAttempt(aiResponse.getAttemptCount(), finalFailure);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> findStaleTargetIds(LocalDateTime cutoff) {
+        return aiResponseRepository.findStaleIds(
+            AiResponseStatusType.PENDING, cutoff, PageRequest.of(0, SWEEP_BATCH_SIZE));
+    }
+
+    // 고착된 PENDING을 선점하고 AI 응답 이벤트를 다시 발행한다. 선점에 실패하면(이미 완료·삭제·갱신됨) false.
+    // 이벤트는 AFTER_COMMIT + @Async로 처리되므로 스케줄러 스레드는 LLM 호출을 기다리지 않는다.
+    public boolean claimAndRepublish(Long aiResponseId, LocalDateTime cutoff) {
+        // 1. 조건부 UPDATE로 선점 (updatedAt을 갱신해 다음 회수 대상에서 빠지게 한다)
+        int claimed = aiResponseRepository.claimStale(
+            aiResponseId, AiResponseStatusType.PENDING, cutoff, LocalDateTime.now());
+        if (claimed == 0) {
+            log.debug("회수 대상 선점 실패로 건너뜀. aiResponseId={}", aiResponseId);
+            return false;
+        }
+
+        // 2. 이벤트에 실을 값을 엔티티에서 구성한다 (ai → diary/user 서비스 의존 없이 엔티티만 탐색)
+        AiResponse aiResponse = aiResponseRepository.findById(aiResponseId)
+            .orElseThrow(() -> {
+                log.warn("선점한 AI 응답이 존재하지 않습니다. aiResponseId={}", aiResponseId);
+                return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
+            });
+        Diary diary = aiResponse.getDiary();
+        User user = diary.getUser();
+
+        // 3. 이벤트 발행
+        log.info("[AI][EventPublished] diaryId={}, userId={}, trigger=sweep, attemptCount={}",
+            diary.getDiaryId(), user.getUserId(), aiResponse.getAttemptCount());
+        applicationEventPublisher.publishEvent(DiaryAiResponseRequestedEvent.from(diary, user));
+        return true;
     }
 
     private AiResponse getAiResponseOrThrow(Long diaryId) {
@@ -96,5 +156,13 @@ public class AiResponseService {
                 log.warn("AI 응답 데이터가 존재하지 않습니다. diaryId={}", diaryId);
                 return new BusinessException(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND);
             });
+    }
+
+    // attemptCount: 이번 실행까지 포함한 시작 횟수
+    public record AttemptStart(AttemptStartResult result, int attemptCount) {
+    }
+
+    // attemptCount: 실패한 실행까지 포함한 시작 횟수, finalFailure: 이번 실패로 FAILED가 확정됐는지
+    public record FailedAttempt(int attemptCount, boolean finalFailure) {
     }
 }

@@ -24,7 +24,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.hearu.ai.feedback.service.AiFeedbackService;
-import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.service.AiResponseService;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
@@ -423,31 +422,29 @@ public class DiaryServiceTest {
         }
 
         @Test
-        @DisplayName("이미 완료된 AI 응답인 경우, 예외 처리 및 이벤트 미발행")
-        void already_completed() {
+        @DisplayName("FAILED가 아닌 경우(COMPLETED·PENDING), 예외 없이 이벤트 미발행")
+        void not_failed_is_noop() {
             given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
-            willThrow(new BusinessException(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED))
-                .given(aiResponseService).markPending(1L);
+            given(aiResponseService.requestRetryIfFailed(1L)).willReturn(false);
 
-            assertThatThrownBy(() -> diaryService.requestAiResponse(1L, 1L))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED.getMessage());
+            diaryService.requestAiResponse(1L, 1L);
 
             verify(applicationEventPublisher, never()).publishEvent(any(DiaryAiResponseRequestedEvent.class));
         }
 
         @Test
-        @DisplayName("성공")
+        @DisplayName("FAILED인 경우, PENDING 초기화 후 이벤트 발행")
         void success() {
             given(userService.getUserOrThrow(1L)).willReturn(user);
             given(diaryRepository.findByDiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(diary));
+            given(aiResponseService.requestRetryIfFailed(1L)).willReturn(true);
 
             diaryService.requestAiResponse(1L, 1L);
 
             // 상태 초기화가 이벤트 발행보다 먼저여야 폴링이 재시도 직후 PENDING을 읽는다
             InOrder inOrder = Mockito.inOrder(aiResponseService, applicationEventPublisher);
-            inOrder.verify(aiResponseService).markPending(1L);
+            inOrder.verify(aiResponseService).requestRetryIfFailed(1L);
             inOrder.verify(applicationEventPublisher).publishEvent(any(DiaryAiResponseRequestedEvent.class));
 
             ArgumentCaptor<DiaryAiResponseRequestedEvent> eventCaptor =

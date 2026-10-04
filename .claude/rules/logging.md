@@ -61,6 +61,11 @@ paths:
 | `RetryFail][Network` / `][5xx` / `][429` | 재시도 소진 후 `@Recover` 진입 |
 | `ParseFail` | 응답 JSON에 `response` 필드가 없음 |
 | `Unhandled` | 재시도 대상이 아닌 예외 |
+| `AttemptFail` | 실행 실패를 기록했지만 상한 전이라 `PENDING` 유지, 회수 대기 (WARN) |
+| `FinalFail` | `FAILED` 확정, Discord 알림 (ERROR). 3회째 실행의 실패 또는 시작 시 상한 소진 (`AiResponseFinalFailureNotifier`) |
+
+회수 스케줄러가 재발행한 실행은 `EventPublished`에 `trigger=sweep`이 붙고, 스케줄러 자체는
+`[Scheduler][AiResponseSweep]`(완료 건수 INFO, 건별 실패 ERROR)로 남긴다.
 
 새 로그를 추가할 때 이 태그 체계를 깨지 않는다. 태그를 늘리거나 이름을 바꿨으면 이 목록도 같이 고친다 —
 이 파일이 태그의 소유자이고, 다른 문서는 여기를 링크만 한다.

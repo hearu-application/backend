@@ -22,6 +22,8 @@ import com.example.hearu.ai.response.domain.PromptBuilder;
 import com.example.hearu.ai.response.infrastructure.client.OpenAiClient;
 import com.example.hearu.ai.response.infrastructure.client.dto.OpenAiChatResponse;
 import com.example.hearu.ai.response.infrastructure.client.dto.Message;
+import com.example.hearu.ai.response.service.AiResponseService.FailedAttempt;
+
 import com.example.hearu.diary.domain.EmotionType;
 import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.domain.ToneType;
@@ -38,6 +40,9 @@ public class AiResponseCallerTest {
 
     @Mock
     OpenAiClient openAiClient;
+
+    @Mock
+    AiResponseFinalFailureNotifier finalFailureNotifier;
 
     @Captor
     ArgumentCaptor<List<Message>> messagesCaptor;
@@ -57,8 +62,12 @@ public class AiResponseCallerTest {
             aiResponseService,
             openAiClient,
             new PromptBuilder(),
-            new ObjectMapper()
+            new ObjectMapper(),
+            finalFailureNotifier
         );
+        // 실패 경로의 기본값: 첫 실패라 PENDING 유지. 최종 실패 케이스는 개별 테스트에서 덮어쓴다.
+        lenient().when(aiResponseService.recordFailure(anyLong()))
+            .thenReturn(new FailedAttempt(1, false));
     }
 
     private OpenAiChatResponse openAiResponse(String content) {
@@ -164,7 +173,7 @@ public class AiResponseCallerTest {
     class Retryable {
 
         @Test
-        @DisplayName("429는 다시 던져 @Retryable에 맡기고 FAILED로 확정하지 않는다")
+        @DisplayName("429는 다시 던져 @Retryable에 맡기고 실패를 기록하지 않는다")
         void too_many_requests_is_rethrown() {
             given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.TOO_MANY_REQUESTS));
@@ -172,7 +181,7 @@ public class AiResponseCallerTest {
             assertThatThrownBy(() -> aiResponseCaller.call(event))
                 .isInstanceOf(HttpClientErrorException.TooManyRequests.class);
 
-            verify(aiResponseService, never()).markFailed(anyLong());
+            verify(aiResponseService, never()).recordFailure(anyLong());
         }
 
         @Test
@@ -184,7 +193,7 @@ public class AiResponseCallerTest {
             assertThatThrownBy(() -> aiResponseCaller.call(event))
                 .isInstanceOf(HttpServerErrorException.class);
 
-            verify(aiResponseService, never()).markFailed(anyLong());
+            verify(aiResponseService, never()).recordFailure(anyLong());
         }
 
         @Test
@@ -196,7 +205,7 @@ public class AiResponseCallerTest {
             assertThatThrownBy(() -> aiResponseCaller.call(event))
                 .isInstanceOf(ResourceAccessException.class);
 
-            verify(aiResponseService, never()).markFailed(anyLong());
+            verify(aiResponseService, never()).recordFailure(anyLong());
         }
     }
 
@@ -205,62 +214,62 @@ public class AiResponseCallerTest {
     class NonRetryable {
 
         @Test
-        @DisplayName("400은 즉시 FAILED로 확정한다")
+        @DisplayName("400은 재시도 없이 실패를 기록한다")
         void bad_request_marks_failed() {
             given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.BAD_REQUEST));
 
             aiResponseCaller.call(event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
         }
 
         @Test
-        @DisplayName("401은 즉시 FAILED로 확정한다")
+        @DisplayName("401은 재시도 없이 실패를 기록한다")
         void unauthorized_marks_failed() {
             given(openAiClient.getAiResponse(anyList()))
                 .willThrow(clientError(HttpStatus.UNAUTHORIZED));
 
             aiResponseCaller.call(event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
         }
 
         @Test
-        @DisplayName("응답에 response 필드가 없으면 FAILED로 확정한다")
+        @DisplayName("응답에 response 필드가 없으면 실패를 기록한다")
         void missing_response_field_marks_failed() {
             given(openAiClient.getAiResponse(anyList()))
                 .willReturn(openAiResponse("{\"message\":\"필드 없음\"}"));
 
             aiResponseCaller.call(event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
             verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
         }
 
         // 출력이 max_completion_tokens에 걸려 JSON이 닫히기 전에 끝나는 케이스(운영에서 실제로 발생).
         @Test
-        @DisplayName("응답 JSON이 잘려 있으면 FAILED로 확정한다")
+        @DisplayName("응답 JSON이 잘려 있으면 실패를 기록한다")
         void truncated_json_marks_failed() {
             given(openAiClient.getAiResponse(anyList()))
                 .willReturn(openAiResponse("{\"response\":\"킁킁, 몽글몽글 전해진다아", "length", 100));
 
             aiResponseCaller.call(event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
             verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
         }
 
         // Clova에는 없던 실패 모드. reasoning 모델이 안전 정책 등으로 본문 대신 refusal을 채우는 경우.
         @Test
-        @DisplayName("refusal 응답(content=null)은 FAILED로 확정한다")
+        @DisplayName("refusal 응답(content=null)은 실패를 기록한다")
         void refusal_marks_failed() {
             given(openAiClient.getAiResponse(anyList()))
                 .willReturn(refusalResponse("정책 위반"));
 
             aiResponseCaller.call(event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
             verify(aiResponseService, never()).markCompletedAndSaveResponse(anyLong(), anyString());
         }
     }
@@ -278,7 +287,7 @@ public class AiResponseCallerTest {
             aiResponseCaller.call(event);
 
             verify(aiResponseService).markCompletedAndSaveResponse(1L, "좋은 하루였구나아~");
-            verify(aiResponseService, never()).markFailed(anyLong());
+            verify(aiResponseService, never()).recordFailure(anyLong());
         }
     }
 
@@ -287,28 +296,66 @@ public class AiResponseCallerTest {
     class Recover {
 
         @Test
-        @DisplayName("429 소진 시 FAILED로 확정한다")
+        @DisplayName("429 소진 시 실패를 기록한다")
         void too_many_requests() {
             aiResponseCaller.recover(
                 (HttpClientErrorException.TooManyRequests) clientError(HttpStatus.TOO_MANY_REQUESTS), event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
         }
 
         @Test
-        @DisplayName("5xx 소진 시 FAILED로 확정한다")
+        @DisplayName("5xx 소진 시 실패를 기록한다")
         void server_error() {
             aiResponseCaller.recover(new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR), event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
         }
 
         @Test
-        @DisplayName("네트워크 오류 소진 시 FAILED로 확정한다")
+        @DisplayName("네트워크 오류 소진 시 실패를 기록한다")
         void network_error() {
             aiResponseCaller.recover(new ResourceAccessException("timeout"), event);
 
-            verify(aiResponseService).markFailed(1L);
+            verify(aiResponseService).recordFailure(1L);
+        }
+    }
+
+    @Nested
+    @DisplayName("실패 기록 후 알림")
+    class FailureNotification {
+
+        @Test
+        @DisplayName("실행 상한 전의 실패는 PENDING을 유지하고 최종 실패 알림을 보내지 않는다")
+        void non_final_failure_does_not_notify() {
+            given(openAiClient.getAiResponse(anyList()))
+                .willThrow(clientError(HttpStatus.BAD_REQUEST));
+
+            aiResponseCaller.call(event);
+
+            verifyNoInteractions(finalFailureNotifier);
+        }
+
+        @Test
+        @DisplayName("실행 상한에 닿아 FAILED가 확정되면 예외 타입을 원인으로 알린다")
+        void final_failure_notifies() {
+            given(openAiClient.getAiResponse(anyList()))
+                .willThrow(clientError(HttpStatus.BAD_REQUEST));
+            given(aiResponseService.recordFailure(1L)).willReturn(new FailedAttempt(3, true));
+
+            aiResponseCaller.call(event);
+
+            verify(finalFailureNotifier).notify(eq(1L), eq(1L), eq(3), contains("BadRequest"));
+        }
+
+        @Test
+        @DisplayName("재시도 소진(@Recover)으로 FAILED가 확정돼도 알린다")
+        void final_failure_on_recover_notifies() {
+            given(aiResponseService.recordFailure(1L)).willReturn(new FailedAttempt(3, true));
+
+            aiResponseCaller.recover(new ResourceAccessException("timeout"), event);
+
+            verify(finalFailureNotifier).notify(1L, 1L, 3, "ResourceAccessException");
         }
     }
 }

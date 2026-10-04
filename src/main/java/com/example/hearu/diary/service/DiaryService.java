@@ -88,16 +88,7 @@ public class DiaryService {
 
         // 7. Ai 응답 이벤트 발행 (바로 아래 EventPublished 로그가 diaryId를 남긴다)
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
-        applicationEventPublisher.publishEvent(
-            new DiaryAiResponseRequestedEvent(
-                diary.getDiaryId(),
-                diary.getContent(),
-                diary.getEmotionType(),
-                user.getUserId(),
-                user.getNickname(),
-                user.getToneType()
-            )
-        );
+        applicationEventPublisher.publishEvent(DiaryAiResponseRequestedEvent.from(diary, user));
 
         // 8. 생성된 일기 정보 반환
         return new DiaryCreateResponse(
@@ -206,21 +197,14 @@ public class DiaryService {
         // 3. 일기 사용자 검증
         diary.validateOwner(userId);
 
-        // 4. AI 응답 상태를 PENDING으로 초기화 (COMPLETED면 여기서 거부된다)
+        // 4. FAILED면 PENDING으로 초기화. COMPLETED·PENDING이면 아무것도 하지 않는다(멱등, 컨트롤러는 그대로 202)
         //    이벤트는 AFTER_COMMIT에 처리되므로, 커밋 시점에 PENDING이 먼저 반영된다.
-        aiResponseService.markPending(diaryId);
+        if (!aiResponseService.requestRetryIfFailed(diaryId)) {
+            return;
+        }
 
         // 5. Ai 응답 이벤트 발행
         log.info("[AI][EventPublished] diaryId={}, userId={}", diary.getDiaryId(), user.getUserId());
-        applicationEventPublisher.publishEvent(
-                new DiaryAiResponseRequestedEvent(
-                        diary.getDiaryId(),
-                        diary.getContent(),
-                        diary.getEmotionType(),
-                        user.getUserId(),
-                        user.getNickname(),
-                        user.getToneType()
-                )
-        );
+        applicationEventPublisher.publishEvent(DiaryAiResponseRequestedEvent.from(diary, user));
     }
 }

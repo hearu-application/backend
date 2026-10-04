@@ -697,7 +697,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "diaries", "{{diaryId}}", "ai-response"]
             },
-            "description": "**AI 응답 수동 요청**\n\n특정 일기에 대한 AI 컴패니언의 감정 응답을 수동으로 재요청합니다.\n\n### 경로 파라미터\n- `diaryId`: AI 응답을 요청할 일기 ID\n\n### 응답 (202 Accepted)\n```json\n{\"message\": \"AI 응답 요청 접수 완료\", \"data\": null}\n```\n- `202 Accepted`: 요청이 수락되었으며 비동기로 처리 중\n- 접수와 동시에 AI 응답 상태가 `PENDING`으로 초기화되므로, 직전 시도가 `FAILED`였어도 폴링은 곧바로 `PENDING`을 읽는다\n\n### 응답 (409 Conflict)\n```json\n{\"status\": 409, \"code\": \"CONFLICT\", \"message\": \"이미 AI 응답이 완료된 일기입니다.\"}\n```\n- 이미 `COMPLETED`인 일기는 재요청이 거부된다 (기존 응답 보존 + 불필요한 LLM 호출 차단)\n- 클라이언트는 `COMPLETED` 상태에서 재요청 버튼을 노출하지 않거나 409를 처리해야 한다\n\n### 사용 시나리오\n- 일기 작성 시 자동 요청된 AI 응답이 `FAILED` 상태인 경우 재시도\n- OpenAI API 장애 후 복구되었을 때 재요청\n- `PENDING`인 채 오래 멈춘 응답 재요청 (중복 요청은 거부하지 않고 그대로 재발행)\n\n### 주의사항\n- 비동기 처리이므로 응답 즉시 AI 내용이 생성되지 않음\n- 실제 AI 응답은 `GET /diaries/{diaryId}/ai-response` 로 별도 조회"
+            "description": "**AI 응답 수동 요청**\n\n특정 일기에 대한 AI 컴패니언의 감정 응답을 수동으로 재요청합니다.\n\n### 경로 파라미터\n- `diaryId`: AI 응답을 요청할 일기 ID\n\n### 응답 (202 Accepted)\n```json\n{\"message\": \"AI 응답 요청 접수 완료\", \"data\": null}\n```\n- `202 Accepted`: 상태와 관계없이 항상 202를 반환한다 (멱등)\n- `FAILED`면 상태를 `PENDING`으로 되돌리고 한 번 더 실행한다. 폴링은 곧바로 `PENDING`을 읽는다\n- `COMPLETED`·`PENDING`이면 아무것도 하지 않는다. 실패한 응답은 서버가 주기적으로 회수해 다시 실행하므로 재요청이 필요 없다\n\n### 사용 시나리오\n- 구버전 앱의 재시도 버튼 (`FAILED` 상태). 새 앱 버전이 충분히 퍼지면 삭제 예정\n\n### 주의사항\n- 비동기 처리이므로 응답 즉시 AI 내용이 생성되지 않음\n- 실제 AI 응답은 `GET /diaries/{diaryId}/ai-response` 로 별도 조회"
           }
         },
         {

@@ -70,13 +70,17 @@ if (this.executingTaskCount == 0) {
 executor.setWaitForTasksToCompleteOnShutdown(true);
 
 // 위 대기의 상한. compose의 stop_grace_period가 이 값보다 커야 SIGKILL이 먼저 오지 않는다.
-executor.setAwaitTerminationSeconds(30);
+executor.setAwaitTerminationSeconds(50);
 ```
 
 `setTaskDecorator`와 마찬가지로 **`initialize()` 이전에** 설정해야 적용된다.
 
-30초 근거 — LLM 호출은 타임아웃(connect 3s + read 6s)과 `@Retryable` 1회 재시도를 포함해
-**건당 최대 약 19초**다.
+50초 근거: LLM 호출은 타임아웃(connect 3s + read 20s)과 `@Retryable` 1회 재시도(backoff 1s)를 포함해
+**건당 최대 약 47초**(2 × 23s + 1s)다.
+
+> 처음에는 30초였다. Clova 시절 read 타임아웃 6초 기준으로 "건당 약 19초"를 잡은 값인데, OpenAI로 바꾸면서
+> read 타임아웃이 20초로 늘어 근거가 깨졌다. AI 응답 회수 작업([`ai-response-stuck-sweep.md`](ai-response-stuck-sweep.md))에서
+> 50초로 올렸다.
 
 > `spring.task.execution.shutdown.*` 프로퍼티로도 같은 설정이 가능하지만 이 프로젝트에는
 > **적용되지 않는다.** `TaskExecutionAutoConfiguration`이 `@ConditionalOnMissingBean(Executor.class)`인데
@@ -84,12 +88,12 @@ executor.setAwaitTerminationSeconds(30);
 
 ### 2. Docker가 그때까지 기다리게 한다 — 전제조건
 
-Compose의 `stop_grace_period` 기본값은 **10초**다. 위에서 30초를 벌어 놔도 10초에 SIGKILL이
+Compose의 `stop_grace_period` 기본값은 **10초**다. 위에서 50초를 벌어 놔도 10초에 SIGKILL이
 날아오면 무의미하므로, 1번이 동작하기 위한 전제조건으로 함께 올린다.
 
 ```yaml
-# 기본값 10s는 graceful 종료(웹 30s + AI 큐 30s)보다 짧아 SIGKILL이 먼저 온다.
-stop_grace_period: 40s
+# 기본값 10s는 AI 큐 종료 대기 상한(AsyncConfig 50s)보다 짧아 SIGKILL이 먼저 온다.
+stop_grace_period: 60s
 ```
 
 `docker-compose.prod.yml`, `docker-compose.dev.yml` 양쪽에 적용한다.
@@ -110,8 +114,8 @@ Spring Boot 3.5.7에서는 **이미 기본값이 `graceful`**이다(`ServerPrope
 | 항목 | 기본값 | 조치 |
 |---|---|---|
 | `waitForTasksToCompleteOnShutdown` | `false` | **`true`로 변경** |
-| `awaitTerminationMillis` | `0` | **30초로 변경** |
-| `stop_grace_period` (Compose) | `10s` | **40s로 변경** |
+| `awaitTerminationMillis` | `0` | **50초로 변경** (처음 30초) |
+| `stop_grace_period` (Compose) | `10s` | **60s로 변경** (처음 40s) |
 | `server.shutdown` | `graceful` | 이미 활성 — 변경 없음 |
 | `spring.lifecycle.timeout-per-shutdown-phase` | `30s` | 변경 없음 |
 
@@ -129,14 +133,14 @@ Spring Boot 3.5.7에서는 **이미 기본값이 `graceful`**이다(`ServerPrope
 
 - **큐 포화** — capacity 30을 넘으면 기본 `AbortPolicy`가 `RejectedExecutionException`을 던져
   이벤트가 버려진다. 리스너가 아예 실행되지 않는다.
-- **큐가 가득 찬 상태의 종료** — 30건을 코어 5스레드로 비우려면 최악 약 114초(30 ÷ 5 × 19초)라
-  30초 대기로는 부족하다.
+- **큐가 가득 찬 상태의 종료** — 30건을 코어 5스레드로 비우려면 최악 약 282초(30 ÷ 5 × 47초)라
+  50초 대기로는 부족하다.
 - **OOM·강제 종료** — SIGTERM 자체가 전달되지 않는다.
-- **`markFailed`의 실패** — DB 장애 시 `AiResponseCaller`의 예외 처리 경로가 또 실패해
+- **실패 기록(당시 `markFailed`)의 실패** — DB 장애 시 `AiResponseCaller`의 예외 처리 경로가 또 실패해
   종단 상태를 기록하지 못한다.
 
-공통점은 **`FAILED`를 기록할 주체가 사라졌다**는 것이다. 이를 덮으려면 고착된 행을 주기적으로
-`FAILED`로 강등하는 **스케줄러 스윕**이 별도로 필요하다(별도 문서).
+공통점은 **`FAILED`를 기록할 주체가 사라졌다**는 것이다. 이 경로는 고착된 `PENDING`을 주기적으로
+다시 실행하는 회수 스케줄러로 덮었다([`ai-response-stuck-sweep.md`](ai-response-stuck-sweep.md)).
 
 ---
 

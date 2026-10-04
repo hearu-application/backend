@@ -11,6 +11,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 import com.example.hearu.ai.response.domain.PromptBuilder;
+import com.example.hearu.ai.response.service.AiResponseService.FailedAttempt;
 import com.example.hearu.common.logging.LogMasker;
 import com.example.hearu.ai.response.infrastructure.client.OpenAiClient;
 import com.example.hearu.ai.response.infrastructure.client.dto.OpenAiChatResponse;
@@ -31,6 +32,7 @@ public class AiResponseCaller {
     private final OpenAiClient openAiClient;
     private final PromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
+    private final AiResponseFinalFailureNotifier finalFailureNotifier;
 
     @Retryable(
         retryFor = {
@@ -119,7 +121,7 @@ public class AiResponseCaller {
                 "[AI][Unhandled] diaryId={}, userId={}, reason={}, message={}",
                 event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage(), e
             );
-            aiResponseService.markFailed(event.diaryId());
+            handleFailure(event, e);
         }
     }
 
@@ -127,20 +129,36 @@ public class AiResponseCaller {
     public void recover(ResourceAccessException e, DiaryAiResponseRequestedEvent event) {
         log.warn("[AI][RetryFail][Network] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage());
-        aiResponseService.markFailed(event.diaryId());
+        handleFailure(event, e);
     }
 
     @Recover
     public void recover(HttpServerErrorException e, DiaryAiResponseRequestedEvent event) {
         log.error("[AI][RetryFail][5xx] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage());
-        aiResponseService.markFailed(event.diaryId());
+        handleFailure(event, e);
     }
 
     @Recover
     public void recover(HttpClientErrorException.TooManyRequests e, DiaryAiResponseRequestedEvent event) {
         log.error("[AI][RetryFail][429] diaryId={}, userId={}, reason={}, message={}",
             event.diaryId(), event.userId(), e.getClass().getSimpleName(), e.getMessage());
-        aiResponseService.markFailed(event.diaryId());
+        handleFailure(event, e);
+    }
+
+    // 실패해도 상한 전이면 FAILED로 확정하지 않는다. PENDING을 유지하고, 회수 스케줄러
+    // (AiResponseSweepScheduler)가 다시 실행한다. 횟수는 리스너가 시작 시점에 이미 셌다.
+    private void handleFailure(DiaryAiResponseRequestedEvent event, Exception cause) {
+        FailedAttempt attempt = aiResponseService.recordFailure(event.diaryId());
+
+        if (!attempt.finalFailure()) {
+            log.warn("[AI][AttemptFail] PENDING 유지, 회수 대기. diaryId={}, userId={}, attemptCount={}",
+                event.diaryId(), event.userId(), attempt.attemptCount());
+            return;
+        }
+
+        // 예외 메시지에는 외부 응답이 섞일 수 있어 알림에는 예외 타입만 싣는다. 상세는 위쪽 실패 로그로 추적한다.
+        finalFailureNotifier.notify(
+            event.diaryId(), event.userId(), attempt.attemptCount(), cause.getClass().getSimpleName());
     }
 }

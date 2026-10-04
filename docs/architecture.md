@@ -31,7 +31,9 @@ graph LR
     Async --> OpenAI
     Async --> DB
     Sched --> DB
+    Sched -.AI 응답 회수.-> Async
     Sched -->|실패 시| Discord
+    Async -->|AI 최종 실패 시| Discord
     API --> OAuth
 ```
 
@@ -118,8 +120,10 @@ graph TD
         ArSvc[AiResponseService]
         Caller[AiResponseCaller]
         AfSvc[AiFeedbackService]
+        SweepSched[AiResponseSweepScheduler]
         Caller --> ArSvc
         AfSvc --> ArSvc
+        SweepSched --> ArSvc
     end
 
     DiarySvc --> UserSvc
@@ -129,7 +133,9 @@ graph TD
     AuthSvc --> UserRepo[(UserRepository)]
 
     Listener[DiaryAiResponseRequestedEventListener] --> Caller
+    Listener -->|startAttempt| ArSvc
     DiarySvc -. ApplicationEvent .-> Listener
+    ArSvc -. ApplicationEvent<br/>회수 재발행 .-> Listener
 ```
 
 **의존 방향 규칙:**
@@ -137,7 +143,11 @@ graph TD
 - `diary` → `ai`는 있지만 **`ai` → `diary`는 서비스 레벨에서 없다.** AI 쪽은 이벤트(`DiaryAiResponseRequestedEvent`)로
   필요한 값을 통째로 받는다. 이벤트가 `diaryId`뿐 아니라 `content`·`emotionType`·`nickname`·`toneType`까지
   들고 다니는 이유가 이것이다.
-- `ai` → `user`는 **`ToneType` enum 참조 하나뿐이다**(`PromptBuilder`, 이벤트 레코드). `AiResponseCaller`가
+  예외적으로 회수 스케줄러가 이벤트를 다시 만들 때(`AiResponseService.claimAndRepublish`)는 `AiResponse` →
+  `Diary` → `User` **엔티티**를 탐색해 값을 채운다. 서비스 의존은 여전히 없다.
+  이벤트는 발행 경로(작성·재요청·회수)와 관계없이 **`DiaryAiResponseRequestedEvent.from(diary, user)` 한 곳에서만
+  만든다.** 필드를 추가했는데 한 경로만 빠뜨리면 재시도할 때만 프롬프트가 달라지고, 컴파일·테스트로 걸리지 않는다.
+- `ai` → `user`는 **`ToneType` enum 참조와 위 회수 경로의 `User` 엔티티 조회뿐이다**(`PromptBuilder`, 이벤트 레코드). `AiResponseCaller`가
   실행 중 `UserService`를 호출하지 않는다 — 말투 값은 이벤트 발행 시점에 확정되어 실려 온다.
 - `AiFeedbackService` → `AiResponseService` 방향이 이미 있으므로, **AI 응답 삭제가 피드백을 연쇄
   삭제하면 순환이 된다.** 그래서 soft delete 전파는 `DiaryService.deleteDiary`, 탈퇴 유저의 하드 삭제는
@@ -184,6 +194,8 @@ sequenceDiagram
 
     Note over L: AFTER_COMMIT + @Async<br/>MDC(requestId/userId) 전파됨
     DS->>L: DiaryAiResponseRequestedEvent
+    L->>AS: startAttempt(diaryId)
+    AS->>DB: attempt_count+1 (상한이면 FAILED, 실행 안 함)
     L->>AC: call(event)
     AC->>AC: PromptBuilder로 system/user 프롬프트 생성<br/>(system은 toneType에 따라 말투 규칙 분기, 닉네임 조사 주입)
     AC->>LLM: POST (system + user 메시지)
@@ -214,17 +226,30 @@ stateDiagram-v2
     [*] --> PENDING: createPending<br/>(일기 생성과 동일 트랜잭션)
 
     PENDING --> COMPLETED: 파싱 성공<br/>markCompletedAndSaveResponse
-    PENDING --> FAILED: markFailed<br/>(파싱 실패 · 재시도 소진)
+    PENDING --> PENDING: 실행 시작 startAttempt (attemptCount+1)<br/>실패 시 recordFailure → 회수 스케줄러가 재실행
+    PENDING --> FAILED: 3회째 실행 실패 (recordFailure)<br/>또는 시작 시 상한 소진 (startAttempt)<br/>+ Discord 알림
 
-    FAILED --> PENDING: POST .../ai-response<br/>markPending
-    PENDING --> PENDING: 재요청 (유실 복구 경로)
+    FAILED --> PENDING: POST .../ai-response<br/>requestRetryIfFailed (구버전 앱)<br/>attemptCount = 상한-1
 
-    COMPLETED --> COMPLETED: 재요청 거부<br/>AI_RESPONSE_ALREADY_COMPLETED
+    COMPLETED --> COMPLETED: 재요청은 202 no-op
 ```
 
-- **`COMPLETED`는 종착점이다.** 재요청은 거부된다 — 기존 응답 보존 + 불필요한 LLM 과금 방지.
-- **`PENDING` 상태에서의 재요청은 허용한다.** 큐 포화나 재배포로 유실된 작업을 사용자가 되살릴 수 있는
-  유일한 경로이기 때문이다(§5 참고).
+- **실행 횟수는 실패가 아니라 시작 시점에 센다.** 리스너가 `AiResponseCaller`를 부르기 직전에 `startAttempt`로
+  `attempt_count`를 올린다. 실행이 실패 기록까지 가지 못하고 끝나도(프로세스 종료, 실패 기록 자체의 실패) 횟수가
+  남으므로 상한이 구조적으로 지켜진다. 횟수를 `call()` 안에서 세지 않는 것은 `@Retryable`이 `call()`을 다시 불러
+  중복으로 세기 때문이다.
+- **실패해도 바로 `FAILED`가 되지 않는다.** 상한 전이면 `PENDING`을 유지하고 회수 스케줄러(§4.7)가 다시 실행한다.
+  실행 3회(최초 1번 + 회수 2번)째가 실패하면 `FAILED`로 확정하고 Discord로 알린다. 실패 기록 없이 상한을 다 쓴
+  행은 회수됐을 때 `startAttempt`가 LLM 없이 `FAILED`로 확정한다. 실행 1번은 `@Retryable`로 LLM을 최대 2번
+  호출하므로 **일기 1건당 LLM 호출은 최대 6번**이다.
+- **새 상태 값(`RETRYING` 등)을 만들지 않는다.** 앱은 모르는 상태 값을 `PENDING`처럼 취급해 구버전 앱이 끝없이
+  기다리게 된다. 재시도 중인지는 `attempt_count`로만 구분한다.
+- **`COMPLETED`는 종착점이다.** 늦게 도착한 실패 기록은 무시하고, 회수와 원래 실행이 겹쳐 이미 끝난 응답은
+  `startAttempt`가 실행하지 않는다.
+- **재요청 API는 멱등이다.** `COMPLETED`·`PENDING`이면 아무것도 하지 않고 202를 반환한다. `FAILED`일 때만
+  `PENDING`으로 되돌려 한 번 더 실행한다(구버전 앱의 재시도 버튼용). 이때 `attempt_count`를 **상한 바로 아래로**
+  맞춰 실행 1회만 허용하므로, 실패하면 곧바로 `FAILED`(+ Discord 알림)가 된다. 위 "최대 6번"은 수동 재요청을
+  뺀 숫자다(버튼 1번마다 최대 2번 추가).
 
 ### 4.3 실패 처리 — 재시도 대상과 아닌 것
 
@@ -233,14 +258,17 @@ graph TD
     Call["AiResponseCaller.call()"] --> Q{예외 종류}
 
     Q -->|"ResourceAccessException<br/>HttpServerErrorException 5xx<br/>TooManyRequests 429"| Retry["@Retryable<br/>maxAttempts=2, backoff 1s"]
-    Q -->|"그 외 (파싱 실패 등)"| Unhandled["log.error + 스택트레이스<br/>markFailed"]
+    Q -->|"그 외 (파싱 실패 · refusal 등)"| Unhandled["log.error + 스택트레이스"]
 
     Retry --> R2{재시도 성공?}
     R2 -->|성공| Done[COMPLETED]
-    R2 -->|소진| Recover["@Recover<br/>네트워크: WARN<br/>5xx / 429: ERROR<br/>→ markFailed"]
+    R2 -->|소진| Recover["@Recover<br/>네트워크: WARN<br/>5xx / 429: ERROR"]
 
-    Unhandled --> Failed[FAILED]
-    Recover --> Failed
+    Unhandled --> Record["recordFailure"]
+    Recover --> Record
+    Record --> R3{"attemptCount ≥ 3?<br/>(시작 시점에 이미 셈)"}
+    R3 -->|아니오| Pending["PENDING 유지<br/>[AI][AttemptFail]<br/>→ 회수 대기"]
+    R3 -->|예| Failed["FAILED<br/>[AI][FinalFail] + Discord<br/>(AiResponseFinalFailureNotifier)"]
 ```
 
 `maxAttempts = 2`는 **최초 1회 + 재시도 1회**다. `@Retryable`이 동작하려면 프록시를 거쳐야 하므로
@@ -371,14 +399,31 @@ WithdrawalPurgeScheduler       cron: 0 0 4 * * *  (매일 04:00)
   → WithdrawalPurgeService.findPurgeTargetIds(cutoff)  최대 500명, 오래된 순
   → 유저마다 WithdrawalPurgeService.purge()            @Transactional (유저 단위)
   → 실패한 유저는 log.error 후 계속, 끝나고 Discord 알림 — 다음 실행에서 자동 재시도
+
+AiResponseSweepScheduler       cron: 0 0 * * * *  (매시 정각)
+  → AiResponseService.findStaleTargetIds(now - stale-after)  PENDING + updatedAt < cutoff, 최대 100건, 오래된 순
+  → 건마다 AiResponseService.claimAndRepublish()     @Transactional (건 단위)
+      조건부 UPDATE(status=PENDING and updatedAt<cutoff)로 updatedAt을 갱신해 선점 — 0행이면 건너뜀
+      → 같은 트랜잭션에서 이벤트 재발행 → AFTER_COMMIT + @Async로 AiResponseCaller 실행
+  → 실패한 건(큐 포화 등)은 log.error 후 계속, 끝나고 Discord 알림 — PENDING이라 다음 실행에서 다시 회수
 ```
+
+`stale-after`(기본 10분)는 **처리 중인 행을 집어 가지 않기 위한 여유**다. AI 응답 1건의 최악 처리 시간은 약
+47초(§5)이고, 그보다 넉넉히 지난 PENDING만 고착으로 본다. 실행을 시작할 때와 실패할 때 `updatedAt`도 갱신되므로
+재시도는 실패 후 10~70분 사이에 일어난다. 회수 대상에는 실패한 실행뿐 아니라 큐 포화로 **아예 시작되지 못한 작업**과
+실행 도중 프로세스가 죽은 작업도 포함된다. 시작되지 못한 작업은 `startAttempt`를 거치지 않았으므로 `attempt_count`가
+늘지 않고, 도중에 죽은 작업은 이미 센 횟수가 남는다.
+
+`AiResponseSweepScheduler`는 LLM 호출을 직접 하지 않는다. 이벤트만 발행하고 실행은 Async 워커가 맡으므로,
+회수 건수가 많아도 단일 스케줄러 스레드를 붙잡아 다른 cron을 밀어내지 않는다.
 
 **`@Retryable`은 스케줄러(비트랜잭션)에, `@Transactional`은 서비스에 둔다.** 한 메서드에 겹치면
 롤백된 트랜잭션 안에서 재시도가 도는 위험이 있다. `AiResponseCaller`와 동일한 패턴이다.
 
-`WithdrawalPurgeScheduler`는 `@Retryable`이 없다. 실패한 유저는 대상 조건을 그대로 만족해 다음 실행이
-다시 집어 가고, 유저 단위 트랜잭션이라 한 명의 실패가 나머지를 막지 않는다. 두 스케줄러 모두 분산 락이
-없어 **단일 인스턴스 전제**다(삭제 쪽은 행 락 + 재확인이라 중복 실행돼도 결과는 같다).
+`WithdrawalPurgeScheduler`·`AiResponseSweepScheduler`는 `@Retryable`이 없다. 실패한 대상은 조건을 그대로
+만족해 다음 실행이 다시 집어 가고, 건 단위 트랜잭션이라 한 건의 실패가 나머지를 막지 않는다. 스케줄러 모두
+분산 락이 없어 **단일 인스턴스 전제**다(삭제 쪽은 행 락 + 재확인, 회수 쪽은 조건부 UPDATE 선점이라 중복 실행돼도
+같은 행을 두 번 재발행하지 않는다).
 
 ---
 
@@ -390,21 +435,20 @@ corePoolSize   5
 maxPoolSize    10
 queueCapacity  30
 waitForTasksToCompleteOnShutdown  true
-awaitTerminationSeconds           30
+awaitTerminationSeconds           50
 ```
 
 동시에 처리 가능한 AI 요청은 **최대 10건 + 대기 30건**이다. 그 이상은 `ThreadPoolTaskExecutor`의
-기본 거부 정책에 걸려 **작업이 버려지고, 해당 일기는 `PENDING`에 머문다.** 이것이
-`markPending`이 `PENDING → PENDING` 재요청을 허용하는 이유다.
+기본 거부 정책에 걸려 **작업이 버려지고, 해당 일기는 `PENDING`에 머문다.** 이렇게 고착된 행은
+회수 스케줄러(§4.7)가 다음 주기에 다시 실행한다.
 
-배포 시에는 `waitForTasksToCompleteOnShutdown`으로 큐를 비우고 나간다.
-**`compose`의 `stop_grace_period`가 `awaitTerminationSeconds`(30s)보다 커야** SIGKILL이 먼저 오지 않는다.
+배포 시에는 `waitForTasksToCompleteOnShutdown`으로 큐를 비우고 나간다. 50초는 AI 응답 1건의 최악 처리 시간
+**2 × (connect 3s + read 20s) + backoff 1s ≈ 47초**에 맞춘 값이다.
+**`compose`의 `stop_grace_period`(60s)가 `awaitTerminationSeconds`(50s)보다 커야** SIGKILL이 먼저 오지 않는다.
 
-다만 이 대기는 **재배포로 인한 유실만** 막는다. 큐 포화·강제 종료·`markFailed` 자체의 실패로 고착된
-`PENDING`은 그대로 남는다.
-
-관련 미결 과제:
-- [`docs/plan/ai-response-stuck-sweep.md`](plan/ai-response-stuck-sweep.md) — 오래 `PENDING`인 응답 정리
+이 대기로 다 비우지 못한 작업(큐가 많이 찬 상태의 종료, OOM·강제 종료, 실패 기록 자체의 실패)도
+행이 `PENDING`으로 남으므로 회수 스케줄러가 거둬 간다. 배경과 범위는
+[`docs/plan/ai-response-stuck-sweep.md`](plan/ai-response-stuck-sweep.md)에 있다.
 
 ---
 
@@ -440,7 +484,7 @@ awaitTerminationSeconds           30
 | diary | `GET /api/v1/diaries/today/count` | 제출일(`createdAt`) 기준 |
 | diary | `GET /api/v1/diaries/calendar` | DTO 직접 조회 · `diaryDate`(대상 날짜) 기준 |
 | diary | `DELETE /api/v1/diaries/{diaryId}` | 204 · AI 응답·피드백 전파 |
-| ai-response | `POST /api/v1/diaries/{diaryId}/ai-response` | 재요청 · COMPLETED면 거부 · **`DiaryController`** |
+| ai-response | `POST /api/v1/diaries/{diaryId}/ai-response` | 재요청(구버전 앱용) · 항상 202, FAILED일 때만 재실행 · **`DiaryController`** |
 | ai-response | `GET /api/v1/diaries/{diaryId}/ai-response` | **폴링 대상** · **`DiaryController`** |
 | ai-feedback | `POST /api/v1/diaries/{diaryId}/ai-response/feedbacks` | upsert |
 | user | `GET /api/v1/users/profile` | |

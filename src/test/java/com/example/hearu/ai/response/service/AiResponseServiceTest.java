@@ -4,6 +4,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.*;
 import static org.mockito.BDDMockito.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.hearu.ai.response.domain.AiResponse;
@@ -22,11 +24,15 @@ import com.example.hearu.ai.response.domain.AiResponseErrorCode;
 import com.example.hearu.ai.response.domain.AiResponseStatusType;
 import com.example.hearu.ai.response.dto.response.AiResponseResponse;
 import com.example.hearu.ai.response.infrastructure.repository.AiResponseRepository;
+import com.example.hearu.ai.response.domain.AttemptStartResult;
+import com.example.hearu.ai.response.service.AiResponseService.AttemptStart;
+import com.example.hearu.ai.response.service.AiResponseService.FailedAttempt;
 import com.example.hearu.auth.domain.ProviderType;
 import com.example.hearu.common.util.exception.BusinessException;
 import com.example.hearu.diary.domain.Diary;
 import com.example.hearu.diary.domain.EmotionType;
 import com.example.hearu.diary.domain.error.DiaryErrorCode;
+import com.example.hearu.diary.event.DiaryAiResponseRequestedEvent;
 import com.example.hearu.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +40,9 @@ public class AiResponseServiceTest {
 
     @Mock
     AiResponseRepository aiResponseRepository;
+
+    @Mock
+    ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     AiResponseService aiResponseService;
@@ -125,87 +134,233 @@ public class AiResponseServiceTest {
     }
 
     @Nested
-    @DisplayName("AI 응답 상태 FAILED로 수정")
-    class MarkFailed {
+    @DisplayName("실행 시작 (횟수는 시작 시점에 센다)")
+    class StartAttempt {
 
         @Test
         @DisplayName("AI 응답이 없는 경우, 예외 처리")
         void ai_response_not_found() {
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> aiResponseService.markFailed(1L))
+            assertThatThrownBy(() -> aiResponseService.startAttempt(1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND.getMessage());
         }
 
         @Test
-        @DisplayName("성공")
-        void success() {
+        @DisplayName("상한 전이면 횟수를 올리고 STARTED")
+        void below_limit_started() {
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
 
-            aiResponseService.markFailed(1L);
+            AttemptStart result = aiResponseService.startAttempt(1L);
 
+            assertThat(result.result()).isEqualTo(AttemptStartResult.STARTED);
+            assertThat(result.attemptCount()).isEqualTo(1);
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+        }
+
+        // 실패 기록 없이 끝난 실행이 반복돼도(프로세스 종료 등) 상한을 넘겨 LLM을 부르지 않는다.
+        @Test
+        @DisplayName("상한을 다 썼으면 횟수를 올리지 않고 FAILED로 확정하고 EXHAUSTED")
+        void at_limit_exhausted() {
+            ReflectionTestUtils.setField(aiResponse, "attemptCount", AiResponseService.MAX_EXECUTIONS);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            AttemptStart result = aiResponseService.startAttempt(1L);
+
+            assertThat(result.result()).isEqualTo(AttemptStartResult.EXHAUSTED);
+            assertThat(aiResponse.getAttemptCount()).isEqualTo(AiResponseService.MAX_EXECUTIONS);
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.FAILED);
         }
 
         @Test
-        @DisplayName("이미 COMPLETED 상태인 경우, 상태 유지")
-        void already_completed_keeps_state() {
+        @DisplayName("이미 COMPLETED면 횟수를 올리지 않고 SKIPPED")
+        void completed_skipped() {
             ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.COMPLETED);
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
 
-            aiResponseService.markFailed(1L);
+            AttemptStart result = aiResponseService.startAttempt(1L);
 
+            assertThat(result.result()).isEqualTo(AttemptStartResult.SKIPPED);
+            assertThat(aiResponse.getAttemptCount()).isZero();
+        }
+
+        @Test
+        @DisplayName("이미 FAILED면 횟수를 올리지 않고 SKIPPED")
+        void failed_skipped() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.FAILED);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            AttemptStart result = aiResponseService.startAttempt(1L);
+
+            assertThat(result.result()).isEqualTo(AttemptStartResult.SKIPPED);
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.FAILED);
+        }
+    }
+
+    @Nested
+    @DisplayName("실행 실패 기록")
+    class RecordFailure {
+
+        @Test
+        @DisplayName("AI 응답이 없는 경우, 예외 처리")
+        void ai_response_not_found() {
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> aiResponseService.recordFailure(1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND.getMessage());
+        }
+
+        @Test
+        @DisplayName("상한 전이면 횟수를 더 올리지 않고 PENDING을 유지한다")
+        void below_limit_keeps_pending() {
+            ReflectionTestUtils.setField(aiResponse, "attemptCount", 1);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            FailedAttempt result = aiResponseService.recordFailure(1L);
+
+            assertThat(result.finalFailure()).isFalse();
+            assertThat(aiResponse.getAttemptCount()).isEqualTo(1);
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+        }
+
+        @Test
+        @DisplayName("상한(3회)째 실행이 실패하면 FAILED로 확정한다")
+        void at_limit_marks_failed() {
+            ReflectionTestUtils.setField(aiResponse, "attemptCount", AiResponseService.MAX_EXECUTIONS);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            FailedAttempt result = aiResponseService.recordFailure(1L);
+
+            assertThat(result.finalFailure()).isTrue();
+            assertThat(result.attemptCount()).isEqualTo(AiResponseService.MAX_EXECUTIONS);
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.FAILED);
+        }
+
+        @Test
+        @DisplayName("이미 COMPLETED 상태인 경우, 상태를 유지한다")
+        void already_completed_keeps_state() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.COMPLETED);
+            ReflectionTestUtils.setField(aiResponse, "attemptCount", AiResponseService.MAX_EXECUTIONS);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            FailedAttempt result = aiResponseService.recordFailure(1L);
+
+            assertThat(result.finalFailure()).isFalse();
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.COMPLETED);
         }
     }
 
     @Nested
-    @DisplayName("AI 응답 재요청 시 상태 PENDING으로 초기화")
-    class MarkPending {
+    @DisplayName("AI 응답 재요청 (FAILED일 때만)")
+    class RequestRetryIfFailed {
 
         @Test
         @DisplayName("AI 응답이 없는 경우, 예외 처리")
         void ai_response_not_found() {
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> aiResponseService.markPending(1L))
+            assertThatThrownBy(() -> aiResponseService.requestRetryIfFailed(1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(AiResponseErrorCode.AI_RESPONSE_NOT_FOUND.getMessage());
         }
 
         @Test
-        @DisplayName("이미 COMPLETED 상태인 경우, 재요청 거부")
-        void already_completed_rejected() {
+        @DisplayName("COMPLETED 상태인 경우, 아무것도 하지 않고 false")
+        void completed_is_noop() {
             ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.COMPLETED);
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
 
-            assertThatThrownBy(() -> aiResponseService.markPending(1L))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(AiResponseErrorCode.AI_RESPONSE_ALREADY_COMPLETED.getMessage());
+            boolean result = aiResponseService.requestRetryIfFailed(1L);
 
+            assertThat(result).isFalse();
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.COMPLETED);
         }
 
         @Test
-        @DisplayName("FAILED 상태인 경우, PENDING으로 초기화")
-        void failed_to_pending() {
-            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.FAILED);
+        @DisplayName("PENDING 상태인 경우, 아무것도 하지 않고 false")
+        void pending_is_noop() {
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
 
-            aiResponseService.markPending(1L);
+            boolean result = aiResponseService.requestRetryIfFailed(1L);
 
+            assertThat(result).isFalse();
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
         }
 
         @Test
-        @DisplayName("이미 PENDING 상태인 경우, 예외 없이 PENDING 유지")
-        void already_pending_kept() {
+        @DisplayName("FAILED 상태인 경우, PENDING으로 되돌리고 실행 1회만 남긴다")
+        void failed_to_pending_with_one_execution_left() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.FAILED);
+            ReflectionTestUtils.setField(aiResponse, "attemptCount", AiResponseService.MAX_EXECUTIONS);
             given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
 
-            aiResponseService.markPending(1L);
+            boolean result = aiResponseService.requestRetryIfFailed(1L);
 
+            assertThat(result).isTrue();
             assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.PENDING);
+            assertThat(aiResponse.getAttemptCount()).isEqualTo(AiResponseService.MAX_EXECUTIONS - 1);
+        }
+
+        // 재요청 → 시작 → 실패가 한 사이클로 "1회 실행 후 곧바로 FAILED"가 되는지 도메인 전이를 이어서 확인한다.
+        @Test
+        @DisplayName("재요청 후 실행이 다시 실패하면 회수 없이 곧바로 FAILED가 된다")
+        void retry_then_failure_is_final() {
+            ReflectionTestUtils.setField(aiResponse, "aiResponseStatusType", AiResponseStatusType.FAILED);
+            given(aiResponseRepository.findByDiary_DiaryIdAndDeletedAtIsNull(1L)).willReturn(Optional.of(aiResponse));
+
+            aiResponseService.requestRetryIfFailed(1L);
+            AttemptStart start = aiResponseService.startAttempt(1L);
+            FailedAttempt failure = aiResponseService.recordFailure(1L);
+
+            assertThat(start.result()).isEqualTo(AttemptStartResult.STARTED);
+            assertThat(failure.finalFailure()).isTrue();
+            assertThat(aiResponse.getAiResponseStatusType()).isEqualTo(AiResponseStatusType.FAILED);
+        }
+    }
+
+    @Nested
+    @DisplayName("고착된 PENDING 선점 및 재발행")
+    class ClaimAndRepublish {
+
+        private final LocalDateTime cutoff = LocalDateTime.now().minusMinutes(10);
+
+        @Test
+        @DisplayName("선점에 실패하면 이벤트를 발행하지 않고 false")
+        void claim_failed() {
+            given(aiResponseRepository.claimStale(eq(1L), eq(AiResponseStatusType.PENDING), eq(cutoff), any()))
+                .willReturn(0);
+
+            boolean result = aiResponseService.claimAndRepublish(1L, cutoff);
+
+            assertThat(result).isFalse();
+            verify(aiResponseRepository, never()).findById(anyLong());
+            verifyNoInteractions(applicationEventPublisher);
+        }
+
+        @Test
+        @DisplayName("선점에 성공하면 엔티티 값으로 이벤트를 발행하고 true")
+        void claim_succeeded() {
+            given(aiResponseRepository.claimStale(eq(1L), eq(AiResponseStatusType.PENDING), eq(cutoff), any()))
+                .willReturn(1);
+            given(aiResponseRepository.findById(1L)).willReturn(Optional.of(aiResponse));
+
+            boolean result = aiResponseService.claimAndRepublish(1L, cutoff);
+
+            assertThat(result).isTrue();
+            ArgumentCaptor<DiaryAiResponseRequestedEvent> captor =
+                ArgumentCaptor.forClass(DiaryAiResponseRequestedEvent.class);
+            verify(applicationEventPublisher).publishEvent(captor.capture());
+
+            Diary diary = aiResponse.getDiary();
+            DiaryAiResponseRequestedEvent event = captor.getValue();
+            assertThat(event.diaryId()).isEqualTo(diary.getDiaryId());
+            assertThat(event.content()).isEqualTo(diary.getContent());
+            assertThat(event.emotionType()).isEqualTo(diary.getEmotionType());
+            assertThat(event.userId()).isEqualTo(diary.getUser().getUserId());
+            assertThat(event.nickname()).isEqualTo(diary.getUser().getNickname());
+            assertThat(event.toneType()).isEqualTo(diary.getUser().getToneType());
         }
     }
 

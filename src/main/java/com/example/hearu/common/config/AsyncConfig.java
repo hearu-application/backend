@@ -32,8 +32,9 @@ public class AsyncConfig {
         // 종료 시 큐에 남은 작업까지 처리한다. 기본값(false)이면 shutdownNow()로 폐기되어 재배포마다 유실된다.
         executor.setWaitForTasksToCompleteOnShutdown(true);
 
-        // 위 대기의 상한. compose의 stop_grace_period가 이 값보다 커야 SIGKILL이 먼저 오지 않는다.
-        executor.setAwaitTerminationSeconds(30);
+        // 위 대기의 상한. AI 응답 1건의 최악 처리 시간은 2 × (connect 3s + read 20s) + backoff 1s ≈ 47s다.
+        // compose의 stop_grace_period가 이 값보다 커야 SIGKILL이 먼저 오지 않는다.
+        executor.setAwaitTerminationSeconds(50);
 
         // 기본 정책(AbortPolicy)은 예외만 던지고 거부 사실은 어디에도 남기지 않는다.
         // 거부 시점을 남기되, 예외는 동일하게 던져 동작은 바꾸지 않는다.
