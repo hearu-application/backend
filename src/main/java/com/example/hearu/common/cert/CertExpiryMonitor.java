@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+import org.springframework.context.annotation.Profile;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
@@ -15,7 +16,10 @@ import com.example.hearu.common.client.discord.DiscordNotifierClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+// nginx TLS 종단은 prod 토폴로지에만 있다. dev(Railway)엔 nginx가 없어 매 cron마다 실패하고 공용
+// Discord 웹훅으로 오탐이 쌓이므로 prod에서만 돌린다.
 @Component
+@Profile("prod")
 @RequiredArgsConstructor
 @Slf4j
 public class CertExpiryMonitor {
@@ -84,9 +88,12 @@ public class CertExpiryMonitor {
 
     @Recover
     public void recover(CertInspectionException e) {
+        String causeDetail = formatCause(e.getCause());
+
         log.error(
-            "[Cert][ExpiryCheck] 재시도 1회 후 최종 실패 - reason={}",
+            "[Cert][ExpiryCheck] 재시도 1회 후 최종 실패 - reason={}, cause={}",
             e.getMessage(),
+            causeDetail,
             e
         );
 
@@ -95,11 +102,20 @@ public class CertExpiryMonitor {
         • 작업: CertExpiryCheck
         • 재시도: 1회 후 실패
         • 원인: %s
+        • 상세: %s
         • 시각: %s
         """.formatted(
                 e.getMessage(),
+                causeDetail,
                 KST_FORMAT.format(Instant.now())
             )
         );
+    }
+
+    private static String formatCause(Throwable cause) {
+        if (cause == null) {
+            return "원인 불명";
+        }
+        return "%s: %s".formatted(cause.getClass().getSimpleName(), cause.getMessage());
     }
 }

@@ -86,6 +86,10 @@ SpEL 미해결로 **기동 실패**한다):
 | `cert.warn-threshold-days` | `21` | 정상 시 항상 30일↑ |
 | `cert.timeout` | `3s` | connect/read (외부 호출 타임아웃 규칙) |
 
+`CertExpiryMonitor`는 `@Profile("prod")`다 — nginx 종단이 prod 토폴로지에만 있어, dev(Railway)·local에선
+빈이 안 떠 스케줄도 안 걸린다(공용 Discord 웹훅으로 오탐이 가던 것 차단). 설정값은 위처럼 전 프로필에
+로드되지만 빈은 prod에서만 뜬다.
+
 구현 태스크:
 - [x] `common.cert` 패키지 생성.
 - [x] 설정 바인딩 추가(위 표, 기본값 포함). 기존 config 바인딩 컨벤션에 통일 — `CertProperties`(`cert.*`),

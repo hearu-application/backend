@@ -28,7 +28,7 @@ class CertExpiryMonitorWiringTest {
             .withBean(DiscordNotifierClient.class, () -> mock(DiscordNotifierClient.class))
             .withBean(CertProperties.class, CertProperties::new)
             .withBean(CertExpiryMonitor.class)
-            .withPropertyValues("cert.check.cron=0 0 9 * * *");
+            .withPropertyValues("cert.check.cron=0 0 9 * * *", "spring.profiles.active=prod");
 
     @Test
     @DisplayName("컨텍스트가 정상 기동된다")
